@@ -1,0 +1,553 @@
+% ============================================================
+%  Weekly Progress Report — EEG Alpha Analysis, Subject SK1
+%  Author: Shayan Khodabakhsh
+%  Advisor: Prof. Walter Besio, URI Biomedical Engineering
+%  February 28, 2026
+% ============================================================
+
+\documentclass[10pt,conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+
+
+\graphicspath{{./latex_figs/}}
+
+\hypersetup{colorlinks=true, linkcolor=black, citecolor=black, urlcolor=black}
+\setlist[itemize]{leftmargin=1.2em, itemsep=1pt, topsep=3pt}
+\captionsetup{font=small, labelfont=it, textfont=it}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+\title{Weekly Progress Report: Alpha Wave Detection via\\
+Tripolar Concentric Ring Electrodes: Subject SK1}
+
+\author{%
+  \IEEEauthorblockN{Shayan Khodabakhsh}
+  \IEEEauthorblockA{%
+    Department of Electrical, Computer and Biomedical Engineering\\
+    University of Rhode Island, Kingston, RI\\
+    February 28, 2026}}
+
+\maketitle
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Overview}
+
+This week I finished the analysis pipeline for the first subject
+(SK1, my own recording).
+The idea was to get everything working on one subject first before
+moving on to the rest.
+I computed four main metrics across all 11 channels -- alpha SNR, alpha
+reactivity (the Berger effect~\cite{kirschfeld2005}), correlation with the disc electrode, and VEP
+amplitude.
+I also ran FOOOF~\cite{donoghue2020} to separate oscillatory peaks from the 1/f background,
+and used SSIM~\cite{wang2004} to compare spectrograms between each tEEG/eEEG pair,
+which was based on your suggestion to try image processing on the spectrograms.
+
+The main takeaway is that the paste TCRE~\cite{besio2006} (Ch9/Ch10) looks the best
+across all the metrics.
+The felt tEEG channels (Ch1, 3, 5, 7) have a lot of ADC clipping,
+which like you pointed out is probably from high impedance.
+That needs to be fixed before recording more subjects.
+I put the individual PSD plots and per-channel spectrograms in the
+appendix so the main report is not too long.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Channel Setup (confirmed with Prof.\ Besio)}
+
+Writing this down so we have it documented:
+
+\begin{itemize}
+  \item Ch1/Ch2 $\to$ Felt TCRE\,\#1 (Ch1\,=\,tEEG Laplacian, Ch2\,=\,eEEG)
+  \item Ch3/Ch4 $\to$ Felt TCRE\,\#2
+  \item Ch5/Ch6 $\to$ Felt TCRE\,\#3
+  \item Ch7/Ch8 $\to$ Felt TCRE\,\#4
+  \item Ch9/Ch10 $\to$ Paste TCRE\,\#5
+  \item Ch11 $\to$ Paste conventional disc (reference standard)
+\end{itemize}
+
+All channels use a left mastoid reference.
+Odd channels are tEEG (Laplacian), even channels are eEEG (conventional).
+This was the mapping correction from last week.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Signal Quality: The Main Issue}
+
+Five channels are clipping at the ADC limits ($\pm$3,276.7\,$\mu$V):
+Ch1, Ch3, Ch5, Ch7, and Ch11.
+Like you mentioned, this is most likely high impedance causing the amplifier
+to pick up a lot of movement artifact.
+The paste TCRE and the eEEG channels stayed within range, which is
+why they look much cleaner.
+
+\textbf{Action item:} measure impedances at the start of every session.
+I will also try applying more conductive gel to the felt electrodes before
+the next subject.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Results Summary}
+
+Table\,\ref{tab:metrics} has all the numbers for every channel.
+Fig.\,\ref{fig:dashboard} shows the same data visually.
+
+\begin{table*}[t]
+  \centering
+  \caption{Per-channel metrics for subject SK1. $\alpha$ Reactivity
+    = Closed/Open alpha power; values $>1$ indicate the Berger effect.}
+  \label{tab:metrics}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{llrrrrr}
+    \toprule
+    \textbf{Channel} & \textbf{Type} &
+    \textbf{$\alpha$ SNR (dB)} & \textbf{Reactivity ($\times$)} &
+    \textbf{$r$ (Disc)} & \textbf{VEP P2P ($\mu$V)} & \textbf{Clip?} \\
+    \midrule
+    Ch1  & Felt tEEG \#1  &  1.20 & 0.40 & 0.006 &  95.3 & \textbf{Yes} \\
+    Ch2  & Felt eEEG \#1  &  1.74 & 0.05 & 0.197 &   1.8 & No           \\
+    Ch3  & Felt tEEG \#2  &  0.02 & 0.81 & 0.316 &  48.3 & \textbf{Yes} \\
+    Ch4  & Felt eEEG \#2  & -0.51 & 0.16 & 0.389 &   1.8 & No           \\
+    Ch5  & Felt tEEG \#3  &  0.39 & 0.54 & 0.735 &  96.6 & \textbf{Yes} \\
+    Ch6  & Felt eEEG \#3  &  2.17 & 0.02 & 0.133 &   4.6 & No           \\
+    Ch7  & Felt tEEG \#4  &  1.32 & 0.69 & 0.869 & 236.8 & \textbf{Yes} \\
+    Ch8  & Felt eEEG \#4  & -0.16 & 0.35 & 0.476 &   3.8 & No           \\
+    Ch9  & Paste tEEG \#5 &  1.64 & 0.64 & 0.936 &  13.9 & No           \\
+    Ch10 & Paste eEEG \#5 & -0.75 & 0.60 & 0.968 &   0.8 & No           \\
+    Ch11 & Paste Disc     & -0.27 & 0.46 & 1.000 &   3.6 & \textbf{Yes} \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_001.png}
+  \caption{Summary dashboard: alpha SNR, reactivity (Closed/Open),
+    disc correlation, and VEP amplitude per channel.}
+  \label{fig:dashboard}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Alpha Reactivity: Why It Is All Below 1}
+
+Alpha reactivity is the ratio of eyes-closed to eyes-open alpha power.
+If it is above 1, that means alpha increases when you close your eyes --
+that is the Berger effect~\cite{kirschfeld2005}, and that is what we expect to see.
+Right now every channel is below 1, meaning open-eye alpha is actually
+higher, which is the opposite of what we want.
+
+I think this is because the visual stimulation blocks (S7 events)
+happened during the open-eye periods, and on the channels that are clipping
+those blocks probably pushed up the broadband power a lot.
+So I think it is more of an artifact issue than anything real.
+Ch3 came closest at 0.81$\times$, and Ch9 was the best non-clipping
+channel at 0.64$\times$.
+I am hoping once we fix the impedance problem this will look more
+like what we expect.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_029.png}
+  \caption{Alpha reactivity. Left: absolute alpha power open vs.\ closed.
+    Right: Closed/Open ratio; dashed line at 1.0 marks the Berger threshold.}
+  \label{fig:reactivity}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Eyes-Open vs.\ Eyes-Closed PSD}
+
+You mentioned the different y-axis scales made it hard to compare channels
+directly, so I normalized them. The plots now share the same y-axis.
+You can see alpha peaks around 10--13\,Hz in Ch9, Ch10, and Ch11
+during eyes-closed, which looks promising.
+The full per-channel PSD plots are in Appendix\,\ref{app:psd}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_030.png}
+  \caption{Eyes-open (green) vs.\ eyes-closed (blue) PSD per channel.
+    Y-axis scales are normalized across channels for direct comparison.}
+  \label{fig:psd}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{FOOOF Spectral Parameterization}
+
+I used the FOOOF (specparam) algorithm~\cite{donoghue2020} on each channel to try to
+separate the oscillatory alpha peak from the 1/f background.
+Table\,\ref{tab:fooof} has the results.
+
+I am still learning how to interpret FOOOF output, but here is what I
+noticed so far.
+Only 5 out of 11 channels had a detected alpha peak. I think the
+clipping on the felt tEEG channels is probably hiding the alpha band
+on those channels.
+Ch9 (paste tEEG) and Ch10 (paste eEEG) both show alpha peaks around
+12.7\,Hz and 10.8\,Hz, and those seem like the most reliable ones.
+Ch10 and Ch11 had poor fits ($R^{2} = 0.80$ and $0.02$).
+Ch11's fit is basically useless, probably because the clipping makes the
+spectrum too noisy for FOOOF to fit properly.
+Ch10 has a weird rising high-frequency tail that FOOOF does not seem to
+handle well -- I am not sure what is causing that yet.
+
+\begin{table*}[t]
+  \centering
+  \caption{FOOOF spectral parameterization results for subject SK1.
+    Channels with no detected alpha peak had no clear oscillatory
+    component above the 1/f background.}
+  \label{tab:fooof}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{llccrrc}
+    \toprule
+    \textbf{Channel} & \textbf{Type} &
+    \textbf{$\alpha$ Peak (Hz)} & \textbf{Amplitude} &
+    \textbf{Aperiodic Offset} & \textbf{Slope} &
+    \textbf{$R^{2}$} \\
+    \midrule
+    Ch1  & Felt tEEG \#1  &  8.60 & 0.12 &  4.77 &  1.79 & 0.97 \\
+    Ch2  & Felt eEEG \#1  & --    & --   &  1.78 &  1.63 & 0.99 \\
+    Ch3  & Felt tEEG \#2  & --    & --   &  4.21 &  1.34 & 1.00 \\
+    Ch4  & Felt eEEG \#2  & --    & --   &  1.40 &  1.60 & 0.99 \\
+    Ch5  & Felt tEEG \#3  & --    & --   &  3.72 &  0.50 & 0.97 \\
+    Ch6  & Felt eEEG \#3  & 12.97 & 0.16 &  1.08 &  0.65 & 0.98 \\
+    Ch7  & Felt tEEG \#4  & 11.14 & 0.12 &  4.88 &  1.33 & 0.90 \\
+    Ch8  & Felt eEEG \#4  & --    & --   &  2.53 &  1.79 & 0.97 \\
+    Ch9  & Paste tEEG \#5 & 12.70 & 0.17 &  2.57 &  1.28 & 0.93 \\
+    Ch10 & Paste eEEG \#5 & 10.81 & 0.20 & -1.64 & -0.53 & 0.80\textsuperscript{*} \\
+    Ch11 & Paste Disc     & 12.77 & 0.23 &  0.40 &  0.01 & 0.02\textsuperscript{*} \\
+    \bottomrule
+    \multicolumn{7}{l}{\small \textsuperscript{*} Poor fit -- interpret with caution.}
+  \end{tabular}
+\end{table*}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Correlation with the Disc}
+
+Fig.\,\ref{fig:corr} shows how well each channel's alpha envelope tracks
+the disc electrode (Ch11).
+The paste channels (Ch10, $r=0.968$ and Ch9, $r=0.936$) track it
+very closely, which makes sense.
+The felt tEEG channels have much lower correlation -- Ch1 is
+basically zero ($r=0.006$).
+
+From what I have read, I think the low correlation on the tEEG channels
+is expected because the Laplacian is supposed to filter out the
+widely spread alpha signal that the disc picks up.
+So the tEEG channels should be showing more localized activity instead.
+If that is the right way to think about it, then the low numbers
+are actually a good sign -- but I wanted to check with you on that.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_032.png}
+  \caption{Pearson correlation of each channel's alpha envelope with Ch11
+    (disc). Low tEEG values may reflect spatial filtering rather than
+    signal loss.}
+  \label{fig:corr}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Visual Evoked Potentials}
+
+Fig.\,\ref{fig:vep} shows the VEP grand averages across 74 trials.
+The biggest value is Ch7 at 236.8\,$\mu$V, but that is almost certainly
+just noise from the high impedance, not a real VEP.
+Ch9 (paste tEEG) at 13.9\,$\mu$V seems like the most trustworthy
+one -- clean signal, no clipping, and a reasonable amplitude.
+The disc and eEEG channels are all under 5\,$\mu$V. I am not sure if that
+means the Laplacian is just better at picking up focal responses or if
+something else is going on -- would appreciate your thoughts on that.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_031.png}
+  \caption{VEP comparison (74 trials). Left: felt tEEG channels.
+    Center: paste channels vs.\ disc.
+    Right: grand average by electrode type.}
+  \label{fig:vep}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Spectrogram SSIM: Image Comparison Between tEEG and eEEG}
+
+This is the image processing comparison you suggested.
+For each TCRE pair, I computed the SSIM~\cite{wang2004} between the tEEG and eEEG
+spectrograms.
+An SSIM of 1.0 means the two images are identical, and anything above
+0.8 is considered high similarity.
+All five pairs came out between 0.32 and 0.48, so there is a pretty
+clear difference between the tEEG and eEEG spectrograms -- the
+Laplacian seems to be changing the signal structure, not just scaling it.
+
+Table\,\ref{tab:ssim} has the scores and
+Figs.\,\ref{fig:ssim1}--\ref{fig:ssim5} show the full comparisons.
+The difference maps all show tEEG having higher power than eEEG.
+On the felt pairs I think this is mostly from the noise/impedance issue.
+On the paste pair (Fig.\,\ref{fig:ssim5}), the difference is smoother
+and more even, which I think is what you would expect from spatial
+filtering rather than just noise.
+I think this comparison will look better once we fix the impedance
+on the felt electrodes.
+
+\begin{table}[t]
+  \centering
+  \caption{Spectrogram SSIM scores per TCRE pair.}
+  \label{tab:ssim}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{lc}
+    \toprule
+    \textbf{TCRE Pair} & \textbf{SSIM} \\
+    \midrule
+    Felt TCRE \#1 (Ch1/Ch2)   & 0.379 \\
+    Felt TCRE \#2 (Ch3/Ch4)   & 0.321 \\
+    Felt TCRE \#3 (Ch5/Ch6)   & 0.482 \\
+    Felt TCRE \#4 (Ch7/Ch8)   & 0.417 \\
+    Paste TCRE \#5 (Ch9/Ch10) & 0.400 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.82\columnwidth]{fig_038.png}
+  \caption{SSIM bar chart per TCRE pair. All values are below 0.8,
+    showing clear differences between Laplacian and conventional
+    recordings.}
+  \label{fig:ssim_bar}
+\end{figure}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{fig_033.png}
+  \caption{Felt TCRE\,\#1 (Ch1/Ch2), SSIM\,=\,0.379. tEEG has higher
+    broadband power throughout.}
+  \label{fig:ssim1}
+\end{figure*}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{fig_034.png}
+  \caption{Felt TCRE\,\#2 (Ch3/Ch4), SSIM\,=\,0.321. Biggest difference
+    of all pairs; eEEG shows a signal drop around 375\,s.}
+  \label{fig:ssim2}
+\end{figure*}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{fig_035.png}
+  \caption{Felt TCRE\,\#3 (Ch5/Ch6), SSIM\,=\,0.482. Most similar pair --
+    both channels are mostly broadband noise here.}
+  \label{fig:ssim3}
+\end{figure*}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{fig_036.png}
+  \caption{Felt TCRE\,\#4 (Ch7/Ch8), SSIM\,=\,0.417. eEEG has large
+    impulse artifacts that do not show up in the tEEG output.}
+  \label{fig:ssim4}
+\end{figure*}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{fig_037.png}
+  \caption{Paste TCRE\,\#5 (Ch9/Ch10), SSIM\,=\,0.400. Cleanest pair;
+    difference is smooth and even, which looks more like what spatial
+    filtering should produce.}
+  \label{fig:ssim5}
+\end{figure*}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{What's Next}
+
+\begin{itemize}
+  \item Check electrode impedances before every future session --
+        top priority.
+  \item Start running the same pipeline on the remaining subjects.
+  \item Once we have 5+ subjects with clean data, run Wilcoxon
+        signed-rank tests to compare SNR and reactivity between
+        electrode types.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+%  APPENDIX
+% ─────────────────────────────────────────────────────────────────────────────
+\appendices
+
+\section{PSD After 60 Hz Notch: All Channels}
+\label{app:psd}
+
+Fig.\,\ref{fig:psd_all} shows the Welch PSD~\cite{welch1967} for all 11 channels after
+the 60\,Hz notch filter.
+The orange shaded region is the alpha band (8--13\,Hz).
+Where FOOOF detected a peak, the frequency is marked with a red
+dashed line.
+The tEEG channels have a steeper 1/f slope and higher overall power
+than their paired eEEG channels, which I think is from the
+Laplacian reducing the common-mode signal.
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{fig_005.png}
+  \caption{PSD (Welch, 0--30\,Hz) for all 11 channels after 60\,Hz notch
+    filtering. Orange shading = alpha band (8--13\,Hz); red dashed line =
+    FOOOF-detected alpha peak frequency where applicable.}
+  \label{fig:psd_all}
+\end{figure*}
+
+\section{Per-Channel Spectrograms}
+\label{app:spectrograms}
+
+Figs.\,\ref{fig:spec_ch1}--\ref{fig:spec_ch11} show the spectrograms
+for each channel.
+The raw EEG trace is on top for reference.
+Pink shaded regions are the visual stimulation blocks (S7 events); light blue
+regions are the eyes-open/closed periods, with
+``Open'' and ``Closed'' labels at each transition.
+The dashed cyan lines mark the alpha band (8 and 13\,Hz).
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_006.png}
+  \caption{Ch1 -- Felt TCRE\,\#1 (tEEG Laplacian). Broad high-power
+    spectrum, likely from ADC clipping and high impedance.}
+  \label{fig:spec_ch1}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_007.png}
+  \caption{Ch2 -- Felt TCRE\,\#1 (eEEG conventional). Much cleaner than
+    Ch1; you can see impulse artifacts at stimulus transitions.}
+  \label{fig:spec_ch2}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_008.png}
+  \caption{Ch3 -- Felt TCRE\,\#2 (tEEG Laplacian). Clipping visible in
+    the raw trace; lots of low-frequency energy in the spectrogram.}
+  \label{fig:spec_ch3}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_009.png}
+  \caption{Ch4 -- Felt TCRE\,\#2 (eEEG conventional). Clean baseline;
+    some broadband bursts near stimulus events.}
+  \label{fig:spec_ch4}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_010.png}
+  \caption{Ch5 -- Felt TCRE\,\#3 (tEEG Laplacian). Worst clipping of all
+    channels; spectrogram is saturated across all frequencies.}
+  \label{fig:spec_ch5}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_011.png}
+  \caption{Ch6 -- Felt TCRE\,\#3 (eEEG conventional). Very clean;
+    the impulse lines at artifact events are sharp and isolated.}
+  \label{fig:spec_ch6}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_012.png}
+  \caption{Ch7 -- Felt TCRE\,\#4 (tEEG Laplacian). Clipping present but
+    not as bad as Ch5; broadband noise throughout.}
+  \label{fig:spec_ch7}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_013.png}
+  \caption{Ch8 -- Felt TCRE\,\#4 (eEEG conventional). Clean; some faint
+    alpha-band activity during eyes-closed periods.}
+  \label{fig:spec_ch8}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_014.png}
+  \caption{Ch9 -- Paste TCRE\,\#5 (tEEG Laplacian). Cleanest tEEG
+    channel; some alpha activity visible during resting state.}
+  \label{fig:spec_ch9}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_015.png}
+  \caption{Ch10 -- Paste TCRE\,\#5 (eEEG conventional). Cleanest eEEG
+    channel; very low noise floor with some subtle alpha-band activity.}
+  \label{fig:spec_ch10}
+\end{figure*}
+
+\begin{figure*}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_016.png}
+  \caption{Ch11 -- Paste Disc (eEEG). Reference electrode; you can see
+    alpha-band energy throughout. The large signal drift early on
+    is probably a settling artifact from when the electrode was applied.}
+  \label{fig:spec_ch11}
+\end{figure*}
+
+% ─────────────────────────────────────────────────────────────────────────────
+%  REFERENCES
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{thebibliography}{5}
+
+\bibitem{besio2006}
+W.~G.~Besio, K.~Koka, R.~Aakula, and W.~Dai,
+``Tri-polar concentric ring electrode development for Laplacian
+electroencephalography,''
+\textit{IEEE Trans.\ Biomed.\ Eng.}, vol.~53, no.~5, pp.~926--933,
+May 2006.
+doi:~10.1109/TBME.2006.872823.
+
+\bibitem{kirschfeld2005}
+K.~Kirschfeld,
+``The physical basis of alpha waves in the electroencephalogram and the
+origin of the `Berger effect',''
+\textit{Biol.\ Cybern.}, vol.~92, no.~3, pp.~177--185, Mar.\ 2005.
+doi:~10.1007/s00422-005-0547-1.
+
+\bibitem{donoghue2020}
+T.~Donoghue, M.~Haller, E.~J.~Peterson, P.~Varma, P.~Sebastian,
+R.~Gao, T.~Noto, A.~H.~Lara, J.~D.~Wallis, R.~T.~Knight,
+A.~Shestyuk, and B.~Voytek,
+``Parameterizing neural power spectra into periodic and aperiodic
+components,''
+\textit{Nature Neurosci.}, vol.~23, no.~12, pp.~1655--1665, Dec.\ 2020.
+doi:~10.1038/s41593-020-00744-x.
+
+\bibitem{wang2004}
+Z.~Wang, A.~C.~Bovik, H.~R.~Sheikh, and E.~P.~Simoncelli,
+``Image quality assessment: From error visibility to structural
+similarity,''
+\textit{IEEE Trans.\ Image Process.}, vol.~13, no.~4, pp.~600--612,
+Apr.\ 2004.
+doi:~10.1109/TIP.2003.819861.
+
+\bibitem{welch1967}
+P.~Welch,
+``The use of fast Fourier transform for the estimation of power spectra:
+A method based on time averaging over short, modified periodograms,''
+\textit{IEEE Trans.\ Audio Electroacoust.}, vol.~15, no.~2, pp.~70--73,
+Jun.\ 1967.
+doi:~10.1109/TAU.1967.1161901.
+
+\end{thebibliography}
+
+\end{document}

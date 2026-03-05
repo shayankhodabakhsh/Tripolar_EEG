@@ -25,6 +25,12 @@ import re
 import glob
 import warnings
 
+try:
+    from skimage.metrics import structural_similarity as ssim
+    HAS_SSIM = True
+except ImportError:
+    HAS_SSIM = False
+
 warnings.filterwarnings("ignore")
 
 # ═══════════════════════════════════════════════════════
@@ -35,28 +41,38 @@ N_CHANNELS = 11
 FS = 1000  # Hz
 RESOLUTION = 0.1  # µV per bit
 
-# Channel labels (verify odd=Conv / even=tEEG with hardware docs!)
+# Channel labels (confirmed: odd=tEEG Laplacian / even=eEEG conventional)
 CH_LABELS = [
-    "Ch1 – SW CRE #1 (Conv)",
-    "Ch2 – SW CRE #1 (tEEG)",
-    "Ch3 – SW CRE #2 (Conv)",
-    "Ch4 – SW CRE #2 (tEEG)",
-    "Ch5 – SW CRE #3 (Conv)",
-    "Ch6 – SW CRE #3 (tEEG)",
-    "Ch7 – SW CRE #4 (Conv)",
-    "Ch8 – SW CRE #4 (tEEG)",
-    "Ch9 – Paste CRE #5 (Conv)",
-    "Ch10 – Paste CRE #5 (tEEG)",
-    "Ch11 – Standard Disc (Conv)",
+    "Ch1 – Felt TCRE #1 (tEEG)",
+    "Ch2 – Felt TCRE #1 (eEEG)",
+    "Ch3 – Felt TCRE #2 (tEEG)",
+    "Ch4 – Felt TCRE #2 (eEEG)",
+    "Ch5 – Felt TCRE #3 (tEEG)",
+    "Ch6 – Felt TCRE #3 (eEEG)",
+    "Ch7 – Felt TCRE #4 (tEEG)",
+    "Ch8 – Felt TCRE #4 (eEEG)",
+    "Ch9 – Paste TCRE #5 (tEEG)",
+    "Ch10 – Paste TCRE #5 (eEEG)",
+    "Ch11 – Paste Disc (eEEG)",
 ]
 SHORT_LABELS = [f"Ch{i+1}" for i in range(N_CHANNELS)]
 
 # Electrode type grouping (0-indexed)
-IDX_SW_CONV = [0, 2, 4, 6]
-IDX_SW_TEEG = [1, 3, 5, 7]
-IDX_PASTE_CONV = [8]
-IDX_PASTE_TEEG = [9]
-IDX_DISC = [10]
+IDX_FELT_TEEG = [0, 2, 4, 6]       # Ch1,3,5,7 – Felt TCRE tEEG (Laplacian)
+IDX_FELT_EEEG = [1, 3, 5, 7]       # Ch2,4,6,8 – Felt TCRE eEEG (conventional)
+IDX_PASTE_TEEG = [8]                # Ch9 – Paste TCRE tEEG
+IDX_PASTE_EEEG = [9]                # Ch10 – Paste TCRE eEEG
+IDX_DISC = [10]                     # Ch11 – Paste conventional disc
+
+# Paired tEEG/eEEG channels from the same TCRE (0-indexed)
+# Each tuple: (tEEG_idx, eEEG_idx, label)
+TCRE_PAIRS = [
+    (0, 1, "Felt TCRE #1"),
+    (2, 3, "Felt TCRE #2"),
+    (4, 5, "Felt TCRE #3"),
+    (6, 7, "Felt TCRE #4"),
+    (8, 9, "Paste TCRE #5"),
+]
 
 # EEG frequency bands
 BANDS = {
@@ -76,11 +92,11 @@ BAND_COLORS = {
 
 # Color scheme by electrode type
 ELEC_LEGEND = [
-    Patch(facecolor="#95a5a6", label="SW Conv (Ch1,3,5,7)"),
-    Patch(facecolor="#3498db", label="SW tEEG (Ch2,4,6,8)"),
-    Patch(facecolor="#9b59b6", label="Paste Conv (Ch9)"),
-    Patch(facecolor="#2ecc71", label="Paste tEEG (Ch10)"),
-    Patch(facecolor="#e74c3c", label="Standard Disc (Ch11)"),
+    Patch(facecolor="#3498db", label="Felt tEEG (Ch1,3,5,7)"),
+    Patch(facecolor="#95a5a6", label="Felt eEEG (Ch2,4,6,8)"),
+    Patch(facecolor="#2ecc71", label="Paste tEEG (Ch9)"),
+    Patch(facecolor="#9b59b6", label="Paste eEEG (Ch10)"),
+    Patch(facecolor="#e74c3c", label="Paste Disc (Ch11)"),
 ]
 
 EVENT_LEGEND = [
@@ -93,13 +109,13 @@ EVENT_LEGEND = [
 
 def ch_color(i):
     """Get color for channel index (0-based)."""
-    if i in IDX_SW_TEEG:
+    if i in IDX_FELT_TEEG:
         return "#3498db"
     if i in IDX_PASTE_TEEG:
         return "#2ecc71"
     if i in IDX_DISC:
         return "#e74c3c"
-    if i in IDX_PASTE_CONV:
+    if i in IDX_PASTE_EEEG:
         return "#9b59b6"
     return "#95a5a6"
 
@@ -129,15 +145,121 @@ def compute_envelope(data, smooth_s=1.0, fs=FS):
     return np.convolve(env, kernel, mode="same")
 
 
+def cohens_d(group1, group2):
+    """
+    Compute Cohen's d effect size for paired samples.
+
+    Uses the pooled standard deviation. Returns NaN if insufficient data.
+    """
+    g1 = np.asarray(group1, dtype=float)
+    g2 = np.asarray(group2, dtype=float)
+    valid = ~(np.isnan(g1) | np.isnan(g2))
+    g1, g2 = g1[valid], g2[valid]
+    if len(g1) < 2:
+        return np.nan
+    n1, n2 = len(g1), len(g2)
+    s_pooled = np.sqrt(((n1 - 1) * g1.std(ddof=1) ** 2 +
+                         (n2 - 1) * g2.std(ddof=1) ** 2) / (n1 + n2 - 2))
+    if s_pooled == 0:
+        return 0.0
+    return (g1.mean() - g2.mean()) / s_pooled
+
+
+def compute_spectrogram_ssim(subject, nperseg=2048, max_freq=45):
+    """
+    Compute SSIM between paired tEEG/eEEG spectrogram images from the same TCRE.
+
+    For each of the 5 TCRE pairs, we generate log-power spectrograms, normalize
+    both to a shared dB range, and compute SSIM on the resulting images.
+
+    Args:
+        subject: dict from load_subject()
+        nperseg: spectrogram segment length
+        max_freq: upper frequency limit (Hz)
+
+    Returns:
+        dict with:
+            - ssim_values: list of 5 SSIM scores (one per TCRE pair)
+            - pair_labels: list of 5 pair labels
+            - spectrogram_pairs: list of (Sxx_teeg, Sxx_eeeg, f, t) for plotting
+    """
+    if not HAS_SSIM:
+        warnings.warn("scikit-image not installed — SSIM unavailable. "
+                       "Install with: pip install scikit-image")
+        return {
+            "ssim_values": [np.nan] * len(TCRE_PAIRS),
+            "pair_labels": [p[2] for p in TCRE_PAIRS],
+            "spectrogram_pairs": [],
+        }
+
+    eeg = subject["eeg"]
+    ssim_values = []
+    pair_labels = []
+    spectrogram_pairs = []
+
+    for teeg_idx, eeeg_idx, label in TCRE_PAIRS:
+        # Compute spectrograms for both channels
+        cleaned_t = notch_filter(eeg[teeg_idx])
+        cleaned_e = notch_filter(eeg[eeeg_idx])
+
+        f_s, t_s, Sxx_t = signal.spectrogram(cleaned_t, fs=FS, nperseg=nperseg,
+                                               noverlap=nperseg // 2, nfft=4096)
+        _, _, Sxx_e = signal.spectrogram(cleaned_e, fs=FS, nperseg=nperseg,
+                                          noverlap=nperseg // 2, nfft=4096)
+
+        # Crop to max_freq
+        fm = f_s <= max_freq
+        Sxx_t_db = 10 * np.log10(Sxx_t[fm] + 1e-10)
+        Sxx_e_db = 10 * np.log10(Sxx_e[fm] + 1e-10)
+
+        # Normalize both to the same range [0, 1] for fair SSIM
+        vmin = min(Sxx_t_db.min(), Sxx_e_db.min())
+        vmax = max(Sxx_t_db.max(), Sxx_e_db.max())
+        rng = vmax - vmin if vmax != vmin else 1.0
+        img_t = (Sxx_t_db - vmin) / rng
+        img_e = (Sxx_e_db - vmin) / rng
+
+        # SSIM with a reasonable window (smaller of image dims)
+        win = min(7, min(img_t.shape) - 1)
+        if win < 3:
+            win = 3
+        if win % 2 == 0:
+            win -= 1
+        score = ssim(img_t, img_e, data_range=1.0, win_size=win)
+
+        ssim_values.append(score)
+        pair_labels.append(label)
+        spectrogram_pairs.append((Sxx_t_db, Sxx_e_db, f_s[fm], t_s))
+
+    return {
+        "ssim_values": ssim_values,
+        "pair_labels": pair_labels,
+        "spectrogram_pairs": spectrogram_pairs,
+    }
+
+
 def add_event_markers(ax, events_oc, stim_blocks, close_epochs,
-                      shade_blocks=True, shade_close=True):
-    """Add experimental event markers to any matplotlib axis."""
+                      shade_blocks=True, shade_close=True, text_labels=False):
+    """Add experimental event markers to any matplotlib axis.
+
+    Args:
+        text_labels: if True, add "Open"/"Closed" text at each event boundary.
+                     Best used on spectrograms and alpha-envelope plots.
+    """
     if shade_blocks:
         for bs, be in stim_blocks:
             ax.axvspan(bs, be, alpha=0.10, color="red")
     for lbl, samp in events_oc:
+        t_sec = samp / FS
         c = "#27ae60" if lbl == "open" else "#3498db"
-        ax.axvline(samp / FS, color=c, linewidth=0.7, alpha=0.6, linestyle="--")
+        ax.axvline(t_sec, color=c, linewidth=0.7, alpha=0.6, linestyle="--")
+        if text_labels:
+            disp_text = "Open" if lbl == "open" else "Closed"
+            ax.text(t_sec, 0.97, disp_text, transform=ax.get_xaxis_transform(),
+                    fontsize=7, fontweight="bold", color=c, ha="left", va="top",
+                    rotation=90, alpha=0.85,
+                    bbox=dict(boxstyle="round,pad=0.15", fc="white", ec=c,
+                              alpha=0.7, lw=0.5))
     if shade_close:
         for ep in close_epochs:
             ax.axvspan(ep["start_s"], ep["end_s"], alpha=0.06, color="#3498db")
@@ -457,6 +579,9 @@ def analyze_subject(subject):
     else:
         vep_p2p = [np.nan] * N_CHANNELS
 
+    # ─── Spectrogram SSIM (tEEG vs eEEG per TCRE pair) ───
+    ssim_results = compute_spectrogram_ssim(subject)
+
     return {
         "alpha_snr": np.array(alpha_snr),
         "alpha_open": np.array(alpha_open),
@@ -465,6 +590,9 @@ def analyze_subject(subject):
         "alpha_envelopes": alpha_envelopes,
         "disc_correlation": np.array(disc_corr),
         "vep_p2p": np.array(vep_p2p),
+        "ssim_values": np.array(ssim_results["ssim_values"]),
+        "ssim_pair_labels": ssim_results["pair_labels"],
+        "ssim_spectrogram_pairs": ssim_results["spectrogram_pairs"],
     }
 
 
@@ -487,6 +615,12 @@ def get_group_metrics(results_dict):
                  "alpha_reactivity", "disc_correlation", "vep_p2p"]:
         arr = np.array([results_dict[name][key] for name in names])
         metrics[key] = arr  # shape: (n_subjects, 11)
+
+    # SSIM: shape (n_subjects, 5) — one per TCRE pair
+    metrics["ssim_values"] = np.array(
+        [results_dict[name]["ssim_values"] for name in names]
+    )
+    metrics["ssim_pair_labels"] = results_dict[names[0]]["ssim_pair_labels"]
 
     metrics["subject_names"] = names
     return metrics
@@ -637,7 +771,8 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
         bp = bandpass_filter(cleaned, 1, 45)
         ax1.plot(t[::ds], bp[::ds], lw=0.3, color="#34495e")
         ax1.set_ylabel("µV"); ax1.set_xlim(0, t[-1])
-        add_event_markers(ax1, events_oc, stim_blocks, close_epochs)
+        add_event_markers(ax1, events_oc, stim_blocks, close_epochs,
+                          text_labels=True)
         nperseg = 2048
         f_s, t_s, Sxx = signal.spectrogram(cleaned, fs=FS, nperseg=nperseg,
                                             noverlap=nperseg // 2, nfft=4096)
@@ -648,7 +783,7 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
         ax2.set_ylim(1, 45)
         ax2.axhline(8, color="cyan", lw=0.8, ls="--", alpha=0.7)
         ax2.axhline(13, color="cyan", lw=0.8, ls="--", alpha=0.7)
-        add_event_markers(ax2, events_oc, stim_blocks, close_epochs, shade_close=False)
+        add_event_markers(ax2, events_oc, stim_blocks, close_epochs, shade_close=False, text_labels=True)
         plt.colorbar(im, ax=ax2, label="dB")
         plt.tight_layout()
         _save_or_show(fig, f"{name}_spectrogram_ch{i+1}.png")
@@ -675,17 +810,30 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
     if open_epochs and close_epochs:
         fig, axes = plt.subplots(6, 2, figsize=(16, 20))
         fig.suptitle(f"Eyes Open vs Closed — {name}", fontsize=14, fontweight="bold", y=1.0)
+        # First pass: compute all PSDs and find global min/max for shared y-scale
+        psd_data = []
+        global_max = 0
+        global_min = np.inf
         for i in range(N_CHANNELS):
-            ax = axes.flatten()[i]
             cleaned = notch_filter(eeg[i])
             od = np.concatenate([cleaned[ep["start"]:ep["end"]] for ep in open_epochs])
             cd = np.concatenate([cleaned[ep["start"]:ep["end"]] for ep in close_epochs])
             f_o, pxx_o = signal.welch(od, fs=FS, nperseg=4096)
             f_c, pxx_c = signal.welch(cd, fs=FS, nperseg=4096)
             mask = (f_o >= 1) & (f_o <= 30)
-            ax.plot(f_o[mask], pxx_o[mask], lw=1.5, color="#27ae60", label="Open")
-            ax.plot(f_c[mask], pxx_c[mask], lw=1.5, color="#3498db", label="Closed")
+            psd_data.append((f_o, pxx_o, f_c, pxx_c, mask))
+            vals = np.concatenate([pxx_o[mask], pxx_c[mask]])
+            global_max = max(global_max, vals.max())
+            global_min = min(global_min, vals[vals > 0].min())
+        # Second pass: plot with shared log y-scale
+        for i in range(N_CHANNELS):
+            ax = axes.flatten()[i]
+            f_o, pxx_o, f_c, pxx_c, mask = psd_data[i]
+            ax.semilogy(f_o[mask], pxx_o[mask], lw=1.5, color="#27ae60", label="Open")
+            ax.semilogy(f_c[mask], pxx_c[mask], lw=1.5, color="#3498db", label="Closed")
+            ax.set_ylim(global_min * 0.5, global_max * 2)
             ax.set_title(CH_LABELS[i], fontsize=9, fontweight="bold")
+            ax.set_ylabel("µV²/Hz", fontsize=8)
             ax.legend(fontsize=7); ax.tick_params(labelsize=7)
         axes.flatten()[11].set_visible(False)
         plt.tight_layout()
@@ -709,5 +857,79 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
         plt.tight_layout()
         _save_or_show(fig, f"{name}_vep.png")
 
-    # ─── 7. Summary dashboard ───
+    # ─── 7. Spectrogram SSIM comparison (tEEG vs eEEG per TCRE) ───
+    ssim_vals = results.get("ssim_values", [])
+    ssim_pairs = results.get("ssim_spectrogram_pairs", [])
+    ssim_labels = results.get("ssim_pair_labels", [])
+
+    if ssim_pairs:
+        for pi, (Sxx_t_db, Sxx_e_db, f_crop, t_crop) in enumerate(ssim_pairs):
+            teeg_idx, eeeg_idx, pair_label = TCRE_PAIRS[pi]
+            score = ssim_vals[pi]
+
+            fig, axes = plt.subplots(1, 3, figsize=(20, 5))
+            fig.suptitle(
+                f"Spectrogram Comparison — {name} — {pair_label}  "
+                f"(SSIM = {score:.3f})",
+                fontsize=13, fontweight="bold",
+            )
+
+            vmin = min(Sxx_t_db.min(), Sxx_e_db.min())
+            vmax = max(Sxx_t_db.max(), Sxx_e_db.max())
+
+            im0 = axes[0].pcolormesh(t_crop, f_crop, Sxx_t_db,
+                                      shading="gouraud", cmap="inferno",
+                                      vmin=vmin, vmax=vmax)
+            axes[0].set_title(f"Ch{teeg_idx+1} — tEEG (Laplacian)", fontsize=10)
+            axes[0].set_ylabel("Hz"); axes[0].set_ylim(1, 45)
+            axes[0].axhline(8, color="cyan", lw=0.6, ls="--", alpha=0.5)
+            axes[0].axhline(13, color="cyan", lw=0.6, ls="--", alpha=0.5)
+
+            im1 = axes[1].pcolormesh(t_crop, f_crop, Sxx_e_db,
+                                      shading="gouraud", cmap="inferno",
+                                      vmin=vmin, vmax=vmax)
+            axes[1].set_title(f"Ch{eeeg_idx+1} — eEEG (Conv)", fontsize=10)
+            axes[1].set_ylabel("Hz"); axes[1].set_ylim(1, 45)
+            axes[1].axhline(8, color="cyan", lw=0.6, ls="--", alpha=0.5)
+            axes[1].axhline(13, color="cyan", lw=0.6, ls="--", alpha=0.5)
+
+            # Difference map
+            diff = Sxx_t_db - Sxx_e_db
+            d_abs = max(abs(diff.min()), abs(diff.max()), 1)
+            im2 = axes[2].pcolormesh(t_crop, f_crop, diff,
+                                      shading="gouraud", cmap="RdBu_r",
+                                      vmin=-d_abs, vmax=d_abs)
+            axes[2].set_title("Difference (tEEG − eEEG)", fontsize=10)
+            axes[2].set_ylabel("Hz"); axes[2].set_ylim(1, 45)
+            axes[2].axhline(8, color="black", lw=0.6, ls="--", alpha=0.5)
+            axes[2].axhline(13, color="black", lw=0.6, ls="--", alpha=0.5)
+
+            for ax in axes:
+                ax.set_xlabel("Time (s)")
+            plt.colorbar(im0, ax=axes[0], label="dB", shrink=0.8)
+            plt.colorbar(im1, ax=axes[1], label="dB", shrink=0.8)
+            plt.colorbar(im2, ax=axes[2], label="ΔdB", shrink=0.8)
+            plt.tight_layout()
+            _save_or_show(fig, f"{name}_ssim_pair{pi+1}_{pair_label.replace(' ', '_')}.png")
+
+        # SSIM summary bar chart
+        fig, ax = plt.subplots(figsize=(8, 4))
+        colors_ssim = ["#3498db"] * 4 + ["#2ecc71"]  # Felt=blue, Paste=green
+        ax.bar(range(len(ssim_vals)), ssim_vals, color=colors_ssim,
+               edgecolor="k", lw=0.5)
+        ax.set_xticks(range(len(ssim_vals)))
+        ax.set_xticklabels(ssim_labels, fontsize=9, rotation=15)
+        ax.set_ylabel("SSIM")
+        ax.set_title(f"Spectrogram SSIM (tEEG vs eEEG) — {name}",
+                     fontsize=12, fontweight="bold")
+        ax.set_ylim(0, 1)
+        ax.axhline(0.8, color="gray", lw=0.8, ls="--", alpha=0.5)
+        ax.text(len(ssim_vals) - 0.5, 0.81, "high similarity", fontsize=7,
+                color="gray", ha="right")
+        for j, v in enumerate(ssim_vals):
+            ax.text(j, v + 0.02, f"{v:.3f}", ha="center", fontsize=9, fontweight="bold")
+        plt.tight_layout()
+        _save_or_show(fig, f"{name}_ssim_summary.png")
+
+    # ─── 8. Summary dashboard ───
     plot_subject_summary(subject, results, save_dir=save_dir, show=show)

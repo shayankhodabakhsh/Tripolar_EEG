@@ -1,0 +1,102 @@
+"""Test functions for specparam.data.periodic."""
+
+import numpy as np
+
+from specparam.data.periodic import *
+
+###################################################################################################
+###################################################################################################
+
+def test_get_band_peak(tfm):
+
+    assert np.all(get_band_peak(tfm, (8, 12)))
+
+def test_get_band_peak_group(tfg, tft):
+
+    assert np.all(get_band_peak_group(tfg, (8, 12)))
+    assert np.all(get_band_peak_group(tft, (8, 12)))
+
+def test_get_band_peak_event(tfe):
+
+    assert np.all(get_band_peak_event(tfe, (8, 12)))
+
+def test_get_band_peak_group_arr():
+
+    data = np.array([[10, 1, 1.8, 0], [13, 1, 2, 2], [14, 2, 4, 2]])
+
+    out1 = get_band_peak_group_arr(data, [8, 12], 3)
+    assert out1.shape == (3, 3)
+    assert np.array_equal(out1[0, :], [10, 1, 1.8])
+
+    out2 = get_band_peak_group_arr(data, [12, 16], 3)
+    assert out2.shape == (3, 3)
+    assert np.array_equal(out2[2, :], [14, 2, 4])
+
+def test_get_band_peak_arr():
+
+    data = np.array([[10, 1, 1.8], [14, 2, 4]])
+
+    # Test single result
+    assert np.array_equal(get_band_peak_arr(data, [10, 12]), [10, 1, 1.8])
+
+    # Test no results - returns nan
+    assert np.all(np.isnan(get_band_peak_arr(data, [4, 8])))
+
+    # Test multiple results - return all
+    assert np.array_equal(get_band_peak_arr(data, [10, 15], select_highest=False),
+                          np.array([[10, 1, 1.8], [14, 2, 4]]))
+
+    # Test multiple results - return one
+    assert np.array_equal(get_band_peak_arr(data, [10, 15], select_highest=True),
+                          np.array([14, 2, 4]))
+
+    # Test applying a threshold
+    assert np.array_equal(get_band_peak_arr(data, [10, 15], threshold=1.5, select_highest=False),
+                          np.array([14, 2, 4]))
+
+def test_get_highest_peak():
+
+    data = np.array([[10, 1, 1.8], [14, 2, 4], [12, 3, 2]])
+
+    assert np.array_equal(get_highest_peak(data), [12, 3, 2])
+
+def test_threshold_peaks():
+
+    # Check it works, with a standard power threshold
+    data = np.array([[10, 1, 1.8], [14, 2, 4], [12, 3, 2.5]])
+    assert np.array_equal(threshold_peaks(data, 2.5), np.array([[12, 3, 2.5]]))
+
+    # Check it works using a bandwidth threshold
+    data = np.array([[10, 1, 1.8], [14, 2, 4], [12, 3, 2.5]])
+    assert np.array_equal(threshold_peaks(data, 2, param='BW'),
+                          np.array([[14, 2, 4], [12, 3, 2.5]]))
+
+    # Check it works with an [n_peaks, 4] array, as from SpectralGroupModel
+    data = np.array([[10, 1, 1.8, 0], [13, 1, 2, 2], [14, 2, 4, 2]])
+    assert np.array_equal(threshold_peaks(data, 1.5), np.array([[14, 2, 4, 2]]))
+
+def test_sort_peaks():
+
+    # With original order of {A B C}, these should get sorted differently for each param
+    #   CF: A, C, B; PW: B, A, C; BW: C, B, A
+    tpeaks = np.array([[5, 2, 8], [15, 1, 7], [10, 3, 6]])
+
+    assert np.array_equal(sort_peaks(tpeaks, 'CF', 'inc')[:, 0], np.array([5, 10, 15]))
+    assert np.array_equal(sort_peaks(tpeaks, 'CF', 'dec')[:, 0], np.array([15, 10, 5]))
+    assert np.array_equal(sort_peaks(tpeaks, 'PW', 'inc')[:, 1], np.array([1, 2, 3]))
+    assert np.array_equal(sort_peaks(tpeaks, 'PW', 'dec')[:, 1], np.array([3, 2, 1]))
+    assert np.array_equal(sort_peaks(tpeaks, 'BW', 'inc')[:, 2], np.array([6, 7, 8]))
+    assert np.array_equal(sort_peaks(tpeaks, 'BW', 'dec')[:, 2], np.array([8, 7, 6]))
+
+def test_empty_inputs():
+
+    data = np.empty(shape=[0, 3])
+
+    assert np.all(get_band_peak_arr(data, [8, 12]))
+    assert np.all(get_highest_peak(data))
+    assert np.all(threshold_peaks(data, 1))
+    assert np.all(sort_peaks(data, 1))
+
+    data = np.empty(shape=[0, 4])
+
+    assert np.all(get_band_peak_group_arr(data, [8, 12], 0))
