@@ -1,3 +1,4 @@
 numpy
 scipy
 matplotlib
+specparam==2.0.0rc6
