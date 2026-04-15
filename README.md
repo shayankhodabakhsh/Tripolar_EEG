@@ -28,6 +28,21 @@ cross-recording comparability.
 
 ---
 
+## Recent Changes (Apr 2026)
+
+- Added Gel-TCRE integration into the same pipeline used for Felt/Paste analyses using `ElectrodeConfig`.
+- Added objective QC gates in `load_all_subjects`: minimum open/close epochs, minimum alpha SNR, minimum reactivity, optional VEP gate.
+- Added per-subject QC reporting (`print_qc_report`) with duration, epoch counts, SNR, and clipping.
+- Switched group comparisons to per-subject aggregation (subject is the independent statistical unit).
+- Restricted cross-setup inferential statistics to scale-invariant metrics.
+- Replaced `np.trapz` with `np.trapezoid` for NumPy 2.0 compatibility.
+- Reworked PSD plots to avoid ribbon artifacts: thin individual traces + thick group median with hard y-floor.
+- Reworked alpha SNR/reactivity plots to boxplots + individual points (reactivity axis cap with outlier annotation).
+- Added spectrogram SSIM into three-way comparisons as a scale-invariant endpoint (`comparison_ssim.png` + statistical tests).
+- Updated `.gitignore` to exclude data-heavy files/folders, binary EEG data, outputs, venv, and LaTeX artifacts.
+
+---
+
 ## Repository Structure
 
 ```
@@ -262,9 +277,10 @@ compare_electrode_types(felt_subjects, gel_subjects)
         includes Paste TCRE bridge validation
 
 plot_three_way_comparison(felt_subjects, gel_subjects, save_dir)
-    └── generates 6 comparison figures:
+    └── generates comparison figures:
         comparison_alpha_snr.png
         comparison_alpha_reactivity.png
+        comparison_ssim.png
         comparison_psd_teeg.png
         comparison_open_vs_closed_psd.png
         comparison_paste_bridge.png
@@ -280,8 +296,9 @@ Running `src/three_way_comparison.ipynb` produces these figures in
 
 | File | Contents |
 |------|----------|
-| `comparison_alpha_snr.png` | Bar chart: Alpha SNR (dB) by electrode type (n = subjects) |
-| `comparison_alpha_reactivity.png` | Bar chart: Closed/Open ratio by electrode type (n = subjects) |
+| `comparison_alpha_snr.png` | Boxplot + individual points: Alpha SNR (dB) by electrode type (n = subjects) |
+| `comparison_alpha_reactivity.png` | Boxplot + individual points: Closed/Open ratio by electrode type (n = subjects) |
+| `comparison_ssim.png` | Boxplot + individual points: spectrogram SSIM by electrode type (n = subjects) |
 | `comparison_psd_teeg.png` | Normalized PSD overlay (tEEG + disc), 1–30 Hz |
 | `comparison_open_vs_closed_psd.png` | Normalized open vs closed PSD per type |
 | `comparison_paste_bridge.png` | Boxplots: Paste TCRE metrics across both setups |
@@ -316,7 +333,7 @@ Running `src/single_subject_analysis_v2.ipynb` produces figures in
 | **Alpha Reactivity** | `alpha_closed / alpha_open` | > 1 = Berger effect detected |
 | **Disc Correlation** | Pearson r of alpha envelope vs disc channel | Tracks same neural events as gold standard |
 | **VEP Peak-to-Peak** | max − min of averaged evoked potential | Stimulus-locked response amplitude |
-| **Spectrogram SSIM** | Structural similarity between tEEG and eEEG spectrograms per TCRE pair | High SSIM = tEEG and eEEG capture similar time-frequency content |
+| **Spectrogram SSIM** | Structural similarity between tEEG and eEEG spectrograms per TCRE pair | Scale-invariant; supports cross-setup comparison without amplitude calibration |
 
 ---
 

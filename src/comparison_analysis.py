@@ -349,6 +349,7 @@ def extract_type_metrics(subjects_results, per_subject=True):
                     "alpha_reactivity": ...,
                     "disc_correlation": ...,
                     "vep_p2p": ...,
+                    "ssim": ...,
                     "subject_names": list of str,
                     "n_channels_per_subject": list of int,
                 },
@@ -371,11 +372,32 @@ def extract_type_metrics(subjects_results, per_subject=True):
             for ch_idx in range(cfg.n_channels):
                 type_to_ch_idxs[cfg.channel_types[ch_idx]].append(ch_idx)
 
+            # Build type-level SSIM from tEEG/eEEG pair SSIM values.
+            # SSIM is defined per TCRE pair, so we attach the same pair score
+            # to both member channel-types (e.g. FELT_TEEG and FELT_EEEG).
+            pair_ssim = res.get("ssim_values", np.array([]))
+            ssim_by_type = defaultdict(list)
+            if len(pair_ssim):
+                for pair_idx, (i_t, i_e, _label) in enumerate(cfg.tcre_pairs):
+                    if pair_idx >= len(pair_ssim):
+                        continue
+                    score = pair_ssim[pair_idx]
+                    if np.isnan(score):
+                        continue
+                    t_type = cfg.channel_types[i_t]
+                    e_type = cfg.channel_types[i_e]
+                    ssim_by_type[t_type].append(score)
+                    ssim_by_type[e_type].append(score)
+
             for ch_type, idxs in type_to_ch_idxs.items():
                 for metric in METRIC_KEYS:
                     vals = [res[metric][i] for i in idxs]
                     # nanmean so that any NaN channels are excluded
                     metrics_by_type[ch_type][metric].append(np.nanmean(vals))
+                type_ssim = ssim_by_type.get(ch_type, [])
+                metrics_by_type[ch_type]["ssim"].append(
+                    np.nanmean(type_ssim) if len(type_ssim) else np.nan
+                )
                 metrics_by_type[ch_type]["subject_names"].append(name)
                 metrics_by_type[ch_type]["n_channels_per_subject"].append(len(idxs))
     else:
@@ -388,6 +410,9 @@ def extract_type_metrics(subjects_results, per_subject=True):
                 ch_type = cfg.channel_types[ch_idx]
                 for metric in METRIC_KEYS:
                     metrics_by_type[ch_type][metric].append(res[metric][ch_idx])
+                # Per-channel mode has no meaningful unique SSIM value because
+                # SSIM is computed per tEEG/eEEG pair, not per single channel.
+                metrics_by_type[ch_type]["ssim"].append(np.nan)
                 metrics_by_type[ch_type]["subject_names"].append(name)
                 metrics_by_type[ch_type]["n_channels_per_subject"].append(1)
 
@@ -568,9 +593,9 @@ def compare_electrode_types(felt_subjects, gel_subjects):
     # Only ratio/scale-invariant metrics are valid for cross-setup comparison.
     # alpha_open and alpha_closed are in µV²/Hz and are NOT comparable between
     # Felt and Gel setups because Gel tEEG channels are divided by 187 during
-    # loading (amplitude /187 → power /187² ≈ /35000). SNR and reactivity are
-    # ratios and cancel out this scaling factor.
-    metric_keys = ["alpha_snr", "alpha_reactivity"]
+    # loading (amplitude /187 → power /187² ≈ /35000). SNR, reactivity, and
+    # SSIM are scale-invariant and valid for cross-setup comparison.
+    metric_keys = ["alpha_snr", "alpha_reactivity", "ssim"]
 
     # Felt tEEG vs Paste tEEG (within felt recordings)
     for metric in metric_keys:
@@ -763,7 +788,42 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
     plt.tight_layout()
     _save_or_show(fig, "comparison_alpha_reactivity.png")
 
-    # ─── 3. PSD overlay — individual subject traces + thick group median ───
+    # ─── 3. Spectrogram SSIM — boxplot + individual subjects ───
+    fig, ax = plt.subplots(figsize=(13, 5))
+    data_ssim = []
+    for t in present:
+        vals = all_metrics[t].get("ssim", np.array([]))
+        data_ssim.append(vals[~np.isnan(vals)])
+
+    bp3 = ax.boxplot(data_ssim, positions=x_pos, widths=0.55,
+                     patch_artist=True, notch=False,
+                     medianprops=dict(color="black", lw=2),
+                     flierprops=dict(marker="o", markersize=4,
+                                     markerfacecolor="gray", alpha=0.6))
+    for patch, color in zip(bp3["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.75)
+
+    for i, vals in enumerate(data_ssim):
+        if len(vals):
+            jitter = np.random.default_rng(42).uniform(-0.15, 0.15, len(vals))
+            ax.scatter(x_pos[i] + jitter, vals, s=18, color=colors[i],
+                       edgecolors="k", lw=0.4, zorder=3, alpha=0.8)
+        ax.text(x_pos[i], 0.01, f"n={len(vals)}", ha="center",
+                fontsize=8, va="bottom")
+
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels([TYPE_DISPLAY.get(t, t) for t in present],
+                       fontsize=10, rotation=15)
+    ax.set_ylabel("SSIM (0-1)")
+    ax.set_title("Spectrogram Similarity (tEEG vs eEEG) by Electrode Type",
+                 fontsize=12, fontweight="bold")
+    ax.set_ylim(0, 1.02)
+    ax.grid(True, axis="y", alpha=0.2)
+    plt.tight_layout()
+    _save_or_show(fig, "comparison_ssim.png")
+
+    # ─── 4. PSD overlay — individual subject traces + thick group median ───
     # Each thin line is one subject's median normalized PSD across their
     # tEEG channels.  The thick line is the group median.
     # This avoids all ribbon artifacts (no mean±std or IQR math needed).
@@ -832,7 +892,7 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
     plt.tight_layout()
     _save_or_show(fig, "comparison_psd_teeg.png")
 
-    # ─── 4. Eyes open vs closed PSD — individual subject medians ───
+    # ─── 5. Eyes open vs closed PSD — individual subject medians ───
     def _collect_oc_psds(subjects_results, ch_type, nperseg=4096, max_freq=30):
         """Return (f, list_of_open_psds, list_of_closed_psds)."""
         open_list, closed_list = [], []
@@ -903,7 +963,7 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
     plt.tight_layout()
     _save_or_show(fig, "comparison_open_vs_closed_psd.png")
 
-    # ─── 5. Paste TCRE bridge validation ───
+    # ─── 6. Paste TCRE bridge validation ───
     felt_paste_snr = comp["felt_type_metrics"].get("PASTE_TEEG", {}).get("alpha_snr", np.array([]))
     gel_paste_snr = comp["gel_type_metrics"].get("PASTE_TEEG", {}).get("alpha_snr", np.array([]))
 
@@ -945,7 +1005,7 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
         plt.tight_layout()
         _save_or_show(fig, "comparison_paste_bridge.png")
 
-    # ─── 6. Statistical summary table ───
+    # ─── 7. Statistical summary table ───
     if comp["comparisons"]:
         print("\n" + "=" * 90)
         print("STATISTICAL COMPARISONS")
