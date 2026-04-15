@@ -744,82 +744,164 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
     ax.set_title("Alpha Reactivity (Berger Effect) — Median ± IQR + Individual Subjects",
                  fontsize=12, fontweight="bold")
     ax.axhline(1, color="gray", lw=1, ls="--", label="No effect (ratio = 1)")
+
+    # Cap y-axis at 20 so the main cluster is readable.
+    # Outliers above this are annotated with arrows.
+    Y_CAP = 20
+    all_react_vals = np.concatenate([v for v in data_react if len(v)])
+    n_clipped = int(np.sum(all_react_vals > Y_CAP))
+    ax.set_ylim(-0.5, Y_CAP)
+    if n_clipped > 0:
+        ax.text(0.99, 0.97,
+                f"↑ {n_clipped} outlier(s) above {Y_CAP} not shown\n"
+                f"   (max = {all_react_vals.max():.0f})",
+                transform=ax.transAxes, ha="right", va="top",
+                fontsize=8, color="#555555",
+                bbox=dict(boxstyle="round", fc="white", alpha=0.7))
+
     ax.legend(fontsize=8, loc="upper left")
     plt.tight_layout()
     _save_or_show(fig, "comparison_alpha_reactivity.png")
 
-    # ─── 3. PSD overlay — median ± IQR (robust to outliers) ───
-    # Median is not pulled by subjects with flat/dead signals the way mean is.
-    psd_all = extract_psd_by_type(all_subjects, normalize=True)
+    # ─── 3. PSD overlay — individual subject traces + thick group median ───
+    # Each thin line is one subject's median normalized PSD across their
+    # tEEG channels.  The thick line is the group median.
+    # This avoids all ribbon artifacts (no mean±std or IQR math needed).
+    def _collect_subject_psds(subjects_results, ch_types_wanted,
+                              nperseg=4096, max_freq=30):
+        """Return list of (f, psd) tuples, one per subject (averaged over
+        channels of the requested types)."""
+        out = []
+        for subj, _res in subjects_results:
+            cfg = subj.get("config", FELT_TCRE_CONFIG)
+            eeg = subj["eeg"]
+            wanted_idxs = [i for i, ct in enumerate(cfg.channel_types)
+                           if ct in ch_types_wanted]
+            if not wanted_idxs:
+                continue
+            psds = []
+            for i in wanted_idxs:
+                cleaned = notch_filter(eeg[i])
+                f, pxx = signal.welch(cleaned, fs=FS, nperseg=nperseg)
+                mask = f <= max_freq
+                pxx_m = pxx[mask]
+                ref = np.trapezoid(pxx_m[(f[mask] >= 1)], f[mask][(f[mask] >= 1)])
+                if ref > 0:
+                    pxx_m = pxx_m / ref
+                psds.append(pxx_m)
+            if psds:
+                out.append((f[mask], np.median(np.array(psds), axis=0)))
+        return out
+
+    type_plot_pairs = [
+        ("FELT_TEEG",  "Felt tEEG",  TYPE_COLORS["FELT_TEEG"]),
+        ("GEL_TEEG",   "Gel tEEG",   TYPE_COLORS["GEL_TEEG"]),
+        ("PASTE_TEEG", "Paste tEEG", TYPE_COLORS["PASTE_TEEG"]),
+        ("DISC",       "Disc EEG",   TYPE_COLORS["DISC"]),
+    ]
+    felt_subj_list = felt_subjects
+    gel_subj_list  = gel_subjects
 
     fig, ax = plt.subplots(figsize=(14, 6))
-    for t in ["FELT_TEEG", "GEL_TEEG", "PASTE_TEEG", "DISC"]:
-        if t not in psd_all:
+    for t, lbl, color in type_plot_pairs:
+        src = all_subjects
+        traces = _collect_subject_psds(src, {t})
+        if not traces:
             continue
-        f, median_psd, iqr_psd = psd_all[t]   # now returns median / IQR
-        mask = (f >= 1) & (f <= 30)
-        ax.semilogy(f[mask], median_psd[mask], lw=2,
-                    color=TYPE_COLORS.get(t, "gray"),
-                    label=TYPE_DISPLAY.get(t, t))
-        lo = (median_psd - iqr_psd * 0.5)[mask].clip(median_psd[mask].min() * 0.01)
-        hi = (median_psd + iqr_psd * 0.5)[mask]
-        ax.fill_between(f[mask], lo, hi,
-                        alpha=0.15, color=TYPE_COLORS.get(t, "gray"))
+        f_ref = traces[0][0]
+        mask = (f_ref >= 1) & (f_ref <= 30)
+        stack = np.array([p for _, p in traces])
+        group_med = np.median(stack, axis=0)
+        # individual thin traces
+        for _, psd in traces:
+            ax.semilogy(f_ref[mask], psd[mask], lw=0.6, alpha=0.25, color=color)
+        # thick group median
+        ax.semilogy(f_ref[mask], group_med[mask], lw=2.5, color=color,
+                    label=f"{lbl} (n={len(traces)})")
 
     ax.axvspan(8, 13, alpha=0.08, color="#e67e22", label="Alpha band")
     ax.set_xlabel("Frequency (Hz)")
     ax.set_ylabel("Relative PSD (normalized, 1/Hz)")
     ax.set_title(
         "PSD Comparison: tEEG Channels by Electrode Type (1–30 Hz)\n"
-        "[Median ± ½ IQR; each channel normalized to its own 1–30 Hz power]",
+        "[Thin = individual subjects, thick = group median; normalized to 1–30 Hz power]",
         fontsize=12, fontweight="bold")
     ax.legend(fontsize=9)
     ax.set_xlim(1, 30)
+    ax.set_ylim(bottom=1e-4)    # hard floor — no 10⁻¹⁹ artifacts
     plt.tight_layout()
     _save_or_show(fig, "comparison_psd_teeg.png")
 
-    # ─── 4. Eyes open vs closed PSD — median ± IQR ───
-    oc_psd = extract_open_closed_psd_by_type(all_subjects, normalize=True)
-    teeg_types = ["FELT_TEEG", "GEL_TEEG", "PASTE_TEEG"]
-    teeg_present = [t for t in teeg_types if t in oc_psd]
+    # ─── 4. Eyes open vs closed PSD — individual subject medians ───
+    def _collect_oc_psds(subjects_results, ch_type, nperseg=4096, max_freq=30):
+        """Return (f, list_of_open_psds, list_of_closed_psds)."""
+        open_list, closed_list = [], []
+        f_out = None
+        for subj, _res in subjects_results:
+            cfg = subj.get("config", FELT_TCRE_CONFIG)
+            eeg = subj["eeg"]
+            open_epochs  = subj["open_epochs"]
+            close_epochs = subj["close_epochs"]
+            if not open_epochs or not close_epochs:
+                continue
+            idxs = [i for i, ct in enumerate(cfg.channel_types) if ct == ch_type]
+            if not idxs:
+                continue
+            o_psds, c_psds = [], []
+            for i in idxs:
+                cleaned = notch_filter(eeg[i])
+                od = np.concatenate([cleaned[ep["start"]:ep["end"]] for ep in open_epochs])
+                cd = np.concatenate([cleaned[ep["start"]:ep["end"]] for ep in close_epochs])
+                f, pxx_o = signal.welch(od, fs=FS, nperseg=nperseg)
+                _,  pxx_c = signal.welch(cd, fs=FS, nperseg=nperseg)
+                mask = f <= max_freq
+                if f_out is None:
+                    f_out = f[mask]
+                ref = np.trapezoid(pxx_o[mask][(f_out >= 1)], f_out[(f_out >= 1)])
+                if ref > 0:
+                    o_psds.append(pxx_o[mask] / ref)
+                    c_psds.append(pxx_c[mask] / ref)
+            if o_psds:
+                open_list.append(np.median(np.array(o_psds), axis=0))
+                closed_list.append(np.median(np.array(c_psds), axis=0))
+        return f_out, open_list, closed_list
 
-    if teeg_present:
-        fig, axes = plt.subplots(1, len(teeg_present),
-                                 figsize=(6 * len(teeg_present), 5),
-                                 sharey=False)
-        if len(teeg_present) == 1:
-            axes = [axes]
-        fig.suptitle(
-            "Eyes Open vs Closed PSD by Electrode Type\n"
-            "[Median ± ½ IQR; normalized to eyes-open total power]",
-            fontsize=12, fontweight="bold")
+    teeg_types_plot = [
+        ("FELT_TEEG",  "Felt tEEG"),
+        ("GEL_TEEG",   "Gel tEEG"),
+        ("PASTE_TEEG", "Paste tEEG"),
+    ]
+    fig, axes = plt.subplots(1, len(teeg_types_plot),
+                             figsize=(6 * len(teeg_types_plot), 5),
+                             sharey=False)
+    fig.suptitle(
+        "Eyes Open vs Closed PSD by Electrode Type\n"
+        "[Thin = individual subjects, thick = group median; normalized to open-epoch power]",
+        fontsize=12, fontweight="bold")
 
-        for idx, t in enumerate(teeg_present):
-            ax = axes[idx]
-            d = oc_psd[t]
-            f = d["freqs"]
-            mask = (f >= 1) & (f <= 30)
+    for idx, (t, title) in enumerate(teeg_types_plot):
+        ax = axes[idx]
+        f_ref, open_list, closed_list = _collect_oc_psds(all_subjects, t)
+        if not f_ref is None and open_list:
+            mask = (f_ref >= 1) & (f_ref <= 30)
+            for psd in open_list:
+                ax.semilogy(f_ref[mask], psd[mask], lw=0.5, alpha=0.2, color="#27ae60")
+            for psd in closed_list:
+                ax.semilogy(f_ref[mask], psd[mask], lw=0.5, alpha=0.2, color="#3498db")
+            ax.semilogy(f_ref[mask], np.median(open_list,   axis=0)[mask],
+                        lw=2.5, color="#27ae60", label=f"Eyes Open (n={len(open_list)})")
+            ax.semilogy(f_ref[mask], np.median(closed_list, axis=0)[mask],
+                        lw=2.5, color="#3498db", label=f"Eyes Closed (n={len(closed_list)})")
+        ax.axvspan(8, 13, alpha=0.08, color="#e67e22")
+        ax.set_title(title, fontsize=11, fontweight="bold")
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Relative PSD (normalized)")
+        ax.legend(fontsize=8)
+        ax.set_xlim(1, 30)
+        ax.set_ylim(bottom=1e-4)
 
-            for key, color, label in [
-                ("open",   "#27ae60", "Eyes Open"),
-                ("closed", "#3498db", "Eyes Closed"),
-            ]:
-                med = d[f"{key}_mean"][mask]    # median stored here
-                iqr = d[f"{key}_std"][mask]     # IQR stored here
-                ax.semilogy(f[mask], med, lw=2, color=color, label=label)
-                lo = (med - iqr * 0.5).clip(med.min() * 0.01)
-                hi = med + iqr * 0.5
-                ax.fill_between(f[mask], lo, hi, alpha=0.15, color=color)
-
-            ax.axvspan(8, 13, alpha=0.08, color="#e67e22")
-            ax.set_title(TYPE_DISPLAY.get(t, t), fontsize=11, fontweight="bold")
-            ax.set_xlabel("Frequency (Hz)")
-            ax.set_ylabel("Relative PSD (normalized)")
-            ax.legend(fontsize=8)
-            ax.set_xlim(1, 30)
-
-        plt.tight_layout()
-        _save_or_show(fig, "comparison_open_vs_closed_psd.png")
+    plt.tight_layout()
+    _save_or_show(fig, "comparison_open_vs_closed_psd.png")
 
     # ─── 5. Paste TCRE bridge validation ───
     felt_paste_snr = comp["felt_type_metrics"].get("PASTE_TEEG", {}).get("alpha_snr", np.array([]))
