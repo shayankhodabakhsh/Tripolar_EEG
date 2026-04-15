@@ -455,7 +455,9 @@ def extract_psd_by_type(subjects_results, nperseg=4096, max_freq=45,
     result = {}
     for type_name, psd_list in psd_by_type.items():
         arr = np.array(psd_list)
-        result[type_name] = (f_out, arr.mean(axis=0), arr.std(axis=0))
+        median = np.median(arr, axis=0)
+        iqr    = np.percentile(arr, 75, axis=0) - np.percentile(arr, 25, axis=0)
+        result[type_name] = (f_out, median, iqr)
 
     return result
 
@@ -527,12 +529,16 @@ def extract_open_closed_psd_by_type(subjects_results, nperseg=4096,
     for type_name in set(list(open_by_type.keys()) + list(closed_by_type.keys())):
         o_arr = np.array(open_by_type[type_name])
         c_arr = np.array(closed_by_type[type_name])
+        # Store median as "mean" key and IQR as "std" key so plot code is
+        # consistent with the main PSD function naming convention.
         result[type_name] = {
-            "freqs": f_out,
-            "open_mean": o_arr.mean(axis=0),
-            "open_std": o_arr.std(axis=0),
-            "closed_mean": c_arr.mean(axis=0),
-            "closed_std": c_arr.std(axis=0),
+            "freqs":       f_out,
+            "open_mean":   np.median(o_arr, axis=0),
+            "open_std":    (np.percentile(o_arr, 75, axis=0) -
+                            np.percentile(o_arr, 25, axis=0)),
+            "closed_mean": np.median(c_arr, axis=0),
+            "closed_std":  (np.percentile(c_arr, 75, axis=0) -
+                            np.percentile(c_arr, 25, axis=0)),
         }
 
     return result
@@ -669,74 +675,95 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
                             label=TYPE_DISPLAY.get(t, t))
                       for t in present]
 
-    # ─── 1. Alpha SNR bar chart ───
-    fig, ax = plt.subplots(figsize=(12, 5))
+    # ─── 1. Alpha SNR — boxplot (robust to outliers) ───
+    fig, ax = plt.subplots(figsize=(13, 5))
     x_pos = np.arange(len(present))
-    means = []
-    stds = []
-    colors = []
+    colors = [TYPE_COLORS.get(t, "gray") for t in present]
+
+    data_snr = []
     for t in present:
         vals = all_metrics[t]["alpha_snr"]
-        vals = vals[~np.isnan(vals)]
-        means.append(np.mean(vals) if len(vals) else 0)
-        stds.append(np.std(vals) if len(vals) else 0)
-        colors.append(TYPE_COLORS.get(t, "gray"))
+        data_snr.append(vals[~np.isnan(vals)])
 
-    ax.bar(x_pos, means, yerr=stds, color=colors, edgecolor="k", lw=0.5,
-           capsize=4, error_kw={"lw": 1})
+    bp = ax.boxplot(data_snr, positions=x_pos, widths=0.55,
+                    patch_artist=True, notch=False,
+                    medianprops=dict(color="black", lw=2),
+                    flierprops=dict(marker="o", markersize=4,
+                                   markerfacecolor="gray", alpha=0.6))
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.75)
+
+    # overlay individual data points
+    for i, (t, vals) in enumerate(zip(present, data_snr)):
+        jitter = np.random.default_rng(42).uniform(-0.15, 0.15, len(vals))
+        ax.scatter(x_pos[i] + jitter, vals, s=18, color=colors[i],
+                   edgecolors="k", lw=0.4, zorder=3, alpha=0.8)
+        ax.text(x_pos[i], ax.get_ylim()[0] if ax.get_ylim()[0] > -999 else -1,
+                f"n={len(vals)}", ha="center", fontsize=8, va="top")
+
     ax.set_xticks(x_pos)
     ax.set_xticklabels([TYPE_DISPLAY.get(t, t) for t in present],
                        fontsize=10, rotation=15)
     ax.set_ylabel("Alpha SNR (dB)")
-    ax.set_title("Alpha SNR by Electrode Type (3-Way Comparison)",
-                 fontsize=13, fontweight="bold")
-    ax.axhline(0, color="gray", lw=0.5)
-    for i, (m, s) in enumerate(zip(means, stds)):
-        n = len(all_metrics[present[i]]["alpha_snr"])
-        ax.text(i, m + s + 0.3, f"n={n} subj", ha="center", fontsize=8)
+    ax.set_title("Alpha SNR by Electrode Type — Median ± IQR + Individual Subjects",
+                 fontsize=12, fontweight="bold")
+    ax.axhline(0, color="gray", lw=0.8, ls="--", label="0 dB (noise floor)")
+    ax.legend(fontsize=8, loc="upper left")
     plt.tight_layout()
     _save_or_show(fig, "comparison_alpha_snr.png")
 
-    # ─── 2. Alpha Reactivity bar chart ───
-    fig, ax = plt.subplots(figsize=(12, 5))
-    means_r = []
-    stds_r = []
+    # ─── 2. Alpha Reactivity — boxplot (skewed distribution, outliers common) ───
+    fig, ax = plt.subplots(figsize=(13, 5))
+
+    data_react = []
     for t in present:
         vals = all_metrics[t]["alpha_reactivity"]
-        vals = vals[~np.isnan(vals)]
-        means_r.append(np.mean(vals) if len(vals) else 0)
-        stds_r.append(np.std(vals) if len(vals) else 0)
+        data_react.append(vals[~np.isnan(vals)])
 
-    ax.bar(x_pos, means_r, yerr=stds_r, color=colors, edgecolor="k", lw=0.5,
-           capsize=4, error_kw={"lw": 1})
+    bp2 = ax.boxplot(data_react, positions=x_pos, widths=0.55,
+                     patch_artist=True, notch=False,
+                     medianprops=dict(color="black", lw=2),
+                     flierprops=dict(marker="o", markersize=4,
+                                    markerfacecolor="gray", alpha=0.6))
+    for patch, color in zip(bp2["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.75)
+
+    for i, (t, vals) in enumerate(zip(present, data_react)):
+        jitter = np.random.default_rng(42).uniform(-0.15, 0.15, len(vals))
+        ax.scatter(x_pos[i] + jitter, vals, s=18, color=colors[i],
+                   edgecolors="k", lw=0.4, zorder=3, alpha=0.8)
+        ax.text(x_pos[i], -0.3, f"n={len(vals)}", ha="center",
+                fontsize=8, va="top")
+
     ax.set_xticks(x_pos)
     ax.set_xticklabels([TYPE_DISPLAY.get(t, t) for t in present],
                        fontsize=10, rotation=15)
-    ax.set_ylabel("Closed / Open")
-    ax.set_title("Alpha Reactivity by Electrode Type",
-                 fontsize=13, fontweight="bold")
-    ax.axhline(1, color="gray", lw=1, ls="--")
+    ax.set_ylabel("Closed / Open (Alpha Power Ratio)")
+    ax.set_title("Alpha Reactivity (Berger Effect) — Median ± IQR + Individual Subjects",
+                 fontsize=12, fontweight="bold")
+    ax.axhline(1, color="gray", lw=1, ls="--", label="No effect (ratio = 1)")
+    ax.legend(fontsize=8, loc="upper left")
     plt.tight_layout()
     _save_or_show(fig, "comparison_alpha_reactivity.png")
 
-    # ─── 3. PSD overlay by type (normalized) ───
-    # Each channel's PSD is divided by its own total power in 1-30 Hz before
-    # averaging, so Felt and Gel are on the same scale despite the /187 gain
-    # difference.  y-axis is relative (1/Hz), not absolute µV²/Hz.
+    # ─── 3. PSD overlay — median ± IQR (robust to outliers) ───
+    # Median is not pulled by subjects with flat/dead signals the way mean is.
     psd_all = extract_psd_by_type(all_subjects, normalize=True)
 
     fig, ax = plt.subplots(figsize=(14, 6))
     for t in ["FELT_TEEG", "GEL_TEEG", "PASTE_TEEG", "DISC"]:
         if t not in psd_all:
             continue
-        f, mean_psd, std_psd = psd_all[t]
+        f, median_psd, iqr_psd = psd_all[t]   # now returns median / IQR
         mask = (f >= 1) & (f <= 30)
-        ax.semilogy(f[mask], mean_psd[mask], lw=2,
+        ax.semilogy(f[mask], median_psd[mask], lw=2,
                     color=TYPE_COLORS.get(t, "gray"),
                     label=TYPE_DISPLAY.get(t, t))
-        ax.fill_between(f[mask],
-                        (mean_psd - std_psd)[mask].clip(1e-20),
-                        (mean_psd + std_psd)[mask],
+        lo = (median_psd - iqr_psd * 0.5)[mask].clip(median_psd[mask].min() * 0.01)
+        hi = (median_psd + iqr_psd * 0.5)[mask]
+        ax.fill_between(f[mask], lo, hi,
                         alpha=0.15, color=TYPE_COLORS.get(t, "gray"))
 
     ax.axvspan(8, 13, alpha=0.08, color="#e67e22", label="Alpha band")
@@ -744,24 +771,19 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
     ax.set_ylabel("Relative PSD (normalized, 1/Hz)")
     ax.set_title(
         "PSD Comparison: tEEG Channels by Electrode Type (1–30 Hz)\n"
-        "[Each channel normalized to its own total 1–30 Hz power]",
+        "[Median ± ½ IQR; each channel normalized to its own 1–30 Hz power]",
         fontsize=12, fontweight="bold")
     ax.legend(fontsize=9)
     ax.set_xlim(1, 30)
     plt.tight_layout()
     _save_or_show(fig, "comparison_psd_teeg.png")
 
-    # ─── 4. Eyes open vs closed PSD per type (normalized) ───
-    # Both open and closed are normalized by the same reference (open-epoch
-    # total power), so the closed/open separation reflects the Berger effect
-    # independently of hardware gain.
+    # ─── 4. Eyes open vs closed PSD — median ± IQR ───
     oc_psd = extract_open_closed_psd_by_type(all_subjects, normalize=True)
     teeg_types = ["FELT_TEEG", "GEL_TEEG", "PASTE_TEEG"]
     teeg_present = [t for t in teeg_types if t in oc_psd]
 
     if teeg_present:
-        # sharey=False: each panel has its own y-scale since normalization
-        # anchors each type to its own open-epoch floor.
         fig, axes = plt.subplots(1, len(teeg_present),
                                  figsize=(6 * len(teeg_present), 5),
                                  sharey=False)
@@ -769,7 +791,7 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
             axes = [axes]
         fig.suptitle(
             "Eyes Open vs Closed PSD by Electrode Type\n"
-            "[Normalized to each channel's own eyes-open total power]",
+            "[Median ± ½ IQR; normalized to eyes-open total power]",
             fontsize=12, fontweight="bold")
 
         for idx, t in enumerate(teeg_present):
@@ -777,18 +799,18 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
             d = oc_psd[t]
             f = d["freqs"]
             mask = (f >= 1) & (f <= 30)
-            ax.semilogy(f[mask], d["open_mean"][mask], lw=2, color="#27ae60",
-                        label="Eyes Open")
-            ax.fill_between(f[mask],
-                            (d["open_mean"] - d["open_std"])[mask].clip(1e-20),
-                            (d["open_mean"] + d["open_std"])[mask],
-                            alpha=0.15, color="#27ae60")
-            ax.semilogy(f[mask], d["closed_mean"][mask], lw=2, color="#3498db",
-                        label="Eyes Closed")
-            ax.fill_between(f[mask],
-                            (d["closed_mean"] - d["closed_std"])[mask].clip(1e-20),
-                            (d["closed_mean"] + d["closed_std"])[mask],
-                            alpha=0.15, color="#3498db")
+
+            for key, color, label in [
+                ("open",   "#27ae60", "Eyes Open"),
+                ("closed", "#3498db", "Eyes Closed"),
+            ]:
+                med = d[f"{key}_mean"][mask]    # median stored here
+                iqr = d[f"{key}_std"][mask]     # IQR stored here
+                ax.semilogy(f[mask], med, lw=2, color=color, label=label)
+                lo = (med - iqr * 0.5).clip(med.min() * 0.01)
+                hi = med + iqr * 0.5
+                ax.fill_between(f[mask], lo, hi, alpha=0.15, color=color)
+
             ax.axvspan(8, 13, alpha=0.08, color="#e67e22")
             ax.set_title(TYPE_DISPLAY.get(t, t), fontsize=11, fontweight="bold")
             ax.set_xlabel("Frequency (Hz)")
