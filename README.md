@@ -1,197 +1,352 @@
-# Tripolar EEG Alpha Wave Analysis — SK1
+# Tripolar EEG Analysis — Felt vs Gel vs Paste TCRE Comparison
 
-Comparison of **tripolar concentric ring electrodes (tEEG)** vs. **conventional disc electrodes** for detecting visually-induced and spontaneous alpha waves.
+Multi-electrode-type comparison of **tripolar concentric ring electrodes (TCRE)** using three
+electrolyte/construction variants — **Felt**, **Gel**, and **Paste** — evaluated on
+alpha-band (8–13 Hz) detection, visual evoked potentials (VEP), and spectral fidelity.
 
 ---
 
 ## Background
 
-This project analyzes EEG data recorded using tripolar concentric ring electrodes (CREs) developed by CREmedical. Unlike standard disc electrodes that measure voltage at a single point, each tripolar CRE has 3 concentric rings and outputs two derivations:
+Tripolar Concentric Ring Electrodes (TCREs) have 3 concentric rings and output two
+derivations from a single placement:
 
-- **Conventional derivation** — outer ring referenced to a remote mastoid electrode (behaves like a standard EEG electrode)
-- **tEEG (Laplacian) derivation** — computed on-board from the 3 rings, producing a surface Laplacian that acts as a spatial high-pass filter, suppressing volume conduction and improving focal source detection
+- **eEEG (conventional)** — outer ring vs. remote mastoid, identical to standard disc EEG
+- **tEEG (Laplacian)** — surface Laplacian computed on-board from all 3 rings, acting as a
+  spatial high-pass filter that suppresses volume conduction and sharpens local source detection
 
-The goal is to determine whether the tripolar tEEG electrodes can detect alpha-band (8–13 Hz) activity as effectively as the gold-standard conventional disc electrode.
+This project compares **three electrolyte/construction types** in a unified analysis pipeline:
 
----
+| Type | Electrolyte | Subjects | Channels |
+|------|-------------|----------|----------|
+| Felt TCRE | Saltwater-soaked felt pad | TU2, LS2 (long recordings) + others | 11 ch |
+| Gel TCRE | Conductive gel (new design with 3D housing) | 10 subjects (BA, MN, BN, EC, EP, MC, RS, MH, RK, AK) | 7 ch |
+| Paste TCRE | Conductive paste | Present in **both** recording setups (bridge electrode) | — |
 
-## Experiment
-
-**Subject:** SK1  
-**Date:** February 19, 2026, 10:58 AM  
-**Amplifier:** BrainAmp (Brain Products)
-
-### Paradigm
-
-| Phase | Description | Duration |
-|-------|-------------|----------|
-| Checkerboard VEP | Fixation on reversing checkerboard pattern with central red dot. 3 blocks of 20 reversals (~600 ms ISI) | ~12 s per block |
-| Eyes Open / Close | Alternating eyes-open and eyes-closed resting periods to elicit spontaneous alpha (Berger effect) | ~30 s each, 3–4 cycles |
-
-### Recording Setup
-
-| Parameter | Value |
-|-----------|-------|
-| Channels | 11 data channels |
-| Sampling rate | 1000 Hz |
-| Resolution | 0.1 µV/bit (INT16) |
-| Hardware filters | 0.1 Hz HP (10 s time constant), 250 Hz LP, notch OFF |
-| Reference | Mastoid (behind ear) — dedicated amplifier input |
-| Ground | Base of skull — dedicated amplifier input |
-
-### Channel Map
-
-> ⚠️ The odd=conventional / even=tEEG pairing is **inferred** from signal amplitude characteristics. Verify with hardware documentation.
-
-| Channel | Electrode | Derivation | Electrolyte |
-|---------|-----------|------------|-------------|
-| Ch1 | Tripolar CRE #1 | Conventional | Saltwater |
-| Ch2 | Tripolar CRE #1 | tEEG (Laplacian) | Saltwater |
-| Ch3 | Tripolar CRE #2 | Conventional | Saltwater |
-| Ch4 | Tripolar CRE #2 | tEEG (Laplacian) | Saltwater |
-| Ch5 | Tripolar CRE #3 | Conventional | Saltwater |
-| Ch6 | Tripolar CRE #3 | tEEG (Laplacian) | Saltwater |
-| Ch7 | Tripolar CRE #4 | Conventional | Saltwater |
-| Ch8 | Tripolar CRE #4 | tEEG (Laplacian) | Saltwater |
-| Ch9 | Tripolar CRE #5 | Conventional | Conductive paste |
-| Ch10 | Tripolar CRE #5 | tEEG (Laplacian) | Conductive paste |
-| Ch11 | Standard disc | Conventional | Conductive paste |
+The **Paste TCRE** is recorded in both setups, acting as a bridge reference to validate
+cross-recording comparability.
 
 ---
 
 ## Repository Structure
 
 ```
-.
-├── README.md                              ← You are here
-├── EEG_Decomposition_Notebook_SK1.ipynb   ← Main analysis notebook (run this)
+Tripolar_EEG/
 │
-├── data/                                  ← Raw data files (BrainVision format)
-│   ├── SK1_2-19-2026.eeg                  ← Raw EEG binary (11ch × 450,240 samples, INT16)
-│   ├── SK1_2-19-2026.vhdr                 ← Header file (channel info, sampling rate, resolution)
-│   ├── SK1_2-19-2026.vmrk                 ← Marker file (stimulus triggers + eyes open/close events)
-│   ├── SK1_2-19-2026-Triggers.avg         ← Pre-averaged VEP (74 segments, float32, filtered)
-│   ├── SK1_2-19-2026-Triggers.vhdr        ← Header for the averaged file
-│   ├── SK1_2-19-2026-Triggers.vmrk        ← Markers for the averaged file
-│   └── Recorder.Setting                   ← BrainVision Recorder workspace reference
+├── README.md                              ← This file
+├── requirements.txt                       ← Python dependencies
+├── .gitignore                             ← Excludes data/, output/, Gel TCRE/, venv/
+├── TCRE_Gel.pdf                           ← Gel TCRE study reference paper
+│
+├── src/                                   ← All analysis code
+│   ├── eeg_analysis.py                    ← Core engine (load, filter, analyze, plot)
+│   ├── comparison_analysis.py             ← 3-way comparison framework (NEW)
+│   │
+│   ├── single_subject_analysis_v2.ipynb   ← Run a single Felt TCRE subject
+│   ├── group_analysis.ipynb               ← Group-level Felt TCRE statistics
+│   ├── three_way_comparison.ipynb         ← Felt vs Gel vs Paste comparison (NEW)
+│   │
+│   └── report_v2.py                       ← CLI batch QC report for all subjects
+│
+├── data/                                  ← [gitignored] Felt TCRE BrainVision files
+│   ├── TU2_long_felt_TCRE_4-7-2026.*      ← .eeg / .vhdr / .vmrk
+│   ├── LS2-long-felt-TCRE-4-7-2026.*
+│   └── (+ 13 other subjects)
+│
+├── Gel TCRE/                              ← [gitignored] Gel TCRE recordings + original code
+│   ├── 10-20-2024/                        ← Date-based session folders
+│   ├── 11-8-2024/
+│   ├── 11-15-2024/
+│   ├── ... (through 11-26-2024)
+│   ├── Untitled-1.py                      ← Original Gel TCRE processing script
+│   ├── fifthTCREGelProcess.py             ← Alternative Gel TCRE pipeline
+│   └── checkerboard/                      ← MATLAB VEP stimulation scripts
+│
+├── output/                                ← [gitignored] Generated figures and reports
+│   └── three_way_comparison/              ← Output from three_way_comparison.ipynb
+│
+├── my_report/                             ← LaTeX reports (PDF + source)
+└── venv/                                  ← [gitignored] Python environment
 ```
-
-### Data Files Explained
-
-**BrainVision format** uses a trio of files (`.vhdr` + `.vmrk` + `.eeg`):
-
-| File | Format | Contents |
-|------|--------|----------|
-| `.eeg` | Binary (INT16, multiplexed) | The actual EEG samples. Channels are interleaved: `[ch1_t0, ch2_t0, ..., ch11_t0, ch1_t1, ...]` |
-| `.vhdr` | Text (INI-style) | Header metadata: number of channels, sampling rate, resolution (µV/bit), hardware filter settings |
-| `.vmrk` | Text (INI-style) | Event markers with sample-accurate timing: stimulus triggers (S7), eyes-open/close comments |
-
-**Averaged file** (`-Triggers.*`):
-
-| File | Format | Contents |
-|------|--------|----------|
-| `-Triggers.avg` | Binary (IEEE float32, multiplexed) | Stimulus-locked average across 74 checkerboard triggers. 500 timepoints (−100 to +400 ms). Already filtered: 0.5–30 Hz bandpass, 60 Hz notch, baseline-corrected |
-| `-Triggers.vhdr` | Text | Header for the averaged data (confirms `SegmentDataPoints=500`, `AveragedSegments=74`) |
-| `-Triggers.vmrk` | Text | Time-zero marker at sample 101 (= 100 ms, the stimulus onset) |
-
-**Recorder.Setting** — Points to the BrainVision Recorder workspace file (`BAmp_Felt_VEP_11ch_500ms-wnotch.rwksp`). Not needed for analysis.
 
 ---
 
-## Notebook Structure
+## Quickstart
 
-The Jupyter notebook (`EEG_Decomposition_Notebook_SK1.ipynb`) is organized into 14 sections:
+### 1. Activate the environment
 
-| # | Section | What It Does |
-|---|---------|--------------|
-| 1 | Setup & Data Loading | Load raw `.eeg` binary file, scale to µV, load pre-averaged VEP |
-| 2 | Helper Functions | Notch filter (60 Hz), bandpass filter, Hilbert envelope, band definitions |
-| 3 | Channel Statistics | Per-channel min/max/std, identifies clipping channels |
-| 4 | Raw Time Series | All 11 channels with stimulus and eyes-open/close event markers overlaid |
-| 5 | Power Spectral Density | Full-range PSD (0–80 Hz) + alpha-focused PSD (1–30 Hz after 60 Hz notch) |
-| 6 | Spectrograms | Per-channel time-frequency decomposition (STFT) with event markers |
-| 7 | Band Decomposition | Per-channel decomposition into delta/theta/alpha/beta/gamma |
-| 8 | Alpha Envelope | Instantaneous alpha power over time (Hilbert transform) with event shading |
-| 9 | Eyes Open vs Closed | **Core analysis:** PSD comparison + alpha reactivity ratio (Berger effect) |
-| 10 | Visual Evoked Potential | Pre-averaged VEP waveforms, per-channel and overlaid by electrode type |
-| 11 | Alpha Dynamics Comparison | Normalized alpha envelopes: tEEG vs conventional vs disc |
-| 12 | Cross-Channel Correlation | Pearson correlation of each channel's alpha envelope with Ch11 (disc) |
-| 13 | Summary Statistics | Dashboard: alpha SNR, reactivity, disc correlation, VEP amplitude |
-| 14 | Key Findings | Discussion of results, caveats, and suggested next steps |
-
----
-
-## Getting Started
-
-### Requirements
-
-Only standard scientific Python libraries are needed:
-
-```
-numpy
-scipy
-matplotlib
-```
-
-Install with:
 ```bash
-pip install numpy scipy matplotlib
+cd /home/shayankh1996/Desktop/Tripolar_EEG/Tripolar_EEG
+source venv/bin/activate
 ```
 
-### Running the Notebook
+### 2. Single-subject analysis (Felt TCRE)
 
-1. Clone or download this repository
-2. Place the data files in the same directory as the notebook (or update `EEG_FILE` and `AVG_FILE` paths in cell 2)
-3. Open the notebook:
-   ```bash
-   jupyter notebook EEG_Decomposition_Notebook_SK1.ipynb
-   ```
-4. Run all cells (`Cell → Run All`) or step through one at a time
-
-### Configuration
-
-All configurable parameters are in **cell 2** of the notebook:
+Open and run `src/single_subject_analysis_v2.ipynb`.
+Set `DATA_DIR` and `SUBJECT` at the top of the notebook:
 
 ```python
-EEG_FILE = 'SK1_2-19-2026.eeg'       # Path to raw EEG binary
-AVG_FILE = 'SK1_2-19-2026-Triggers.avg'  # Path to pre-averaged VEP
-N_CHANNELS = 11
-FS = 1000          # Sampling rate (Hz)
-RESOLUTION = 0.1   # µV per bit
+DATA_DIR = "../data"
+SUBJECT  = "TU2"   # or "LS2", "AH felt TCRE", etc.
 ```
 
-Channel labels and electrode-type groupings (`IDX_SW_CONV`, `IDX_SW_TEEG`, etc.) are also defined here. **Update these if the channel mapping differs from what's documented above.**
+All figures are saved to `output/<subject_basename>/single_subject/`.
+
+### 3. Three-way comparison (Felt vs Gel vs Paste)
+
+Open and run `src/three_way_comparison.ipynb`.
+The defaults are pre-configured:
+
+```python
+FELT_DATA_DIR = "../data"
+GEL_DATA_DIR  = "../Gel TCRE"
+FELT_SUBJECTS = ["TU2", "LS2"]   # long felt recordings
+```
+
+Figures are saved to `output/three_way_comparison/`.
+
+### 4. Group-level analysis (Felt TCRE only)
+
+Open and run `src/group_analysis.ipynb`. This loads all subjects in `data/`,
+runs the full pipeline, and produces paired statistical tests.
+
+### 5. Batch QC report (CLI)
+
+```bash
+cd /home/shayankh1996/Desktop/Tripolar_EEG/Tripolar_EEG
+source venv/bin/activate
+python src/report_v2.py --data-dir data/ --out output/report_v2.txt
+```
+
+---
+
+## Channel Maps
+
+### Felt TCRE (11 channels)
+
+| Ch | Label | Type | Electrolyte |
+|----|-------|------|-------------|
+| 1 | Felt TCRE #1 (tEEG) | Laplacian | Felt pad |
+| 2 | Felt TCRE #1 (eEEG) | Conventional | Felt pad |
+| 3 | Felt TCRE #2 (tEEG) | Laplacian | Felt pad |
+| 4 | Felt TCRE #2 (eEEG) | Conventional | Felt pad |
+| 5 | Felt TCRE #3 (tEEG) | Laplacian | Felt pad |
+| 6 | Felt TCRE #3 (eEEG) | Conventional | Felt pad |
+| 7 | Felt TCRE #4 (tEEG) | Laplacian | Felt pad |
+| 8 | Felt TCRE #4 (eEEG) | Conventional | Felt pad |
+| 9 | Paste TCRE #5 (tEEG) | Laplacian | Paste |
+| 10 | Paste TCRE #5 (eEEG) | Conventional | Paste |
+| 11 | Paste Disc | Conventional disc | Paste |
+
+### Gel TCRE (7 channels)
+
+| Ch | Label | Type | Location |
+|----|-------|------|----------|
+| 1 | Gel TCRE O1 (tEEG) | Laplacian | O1 |
+| 2 | Gel TCRE O1 (eEEG) | Conventional | O1 |
+| 3 | Gel TCRE O2 (tEEG) | Laplacian | O2 |
+| 4 | Gel TCRE O2 (eEEG) | Conventional | O2 |
+| 5 | Paste TCRE Pz (tEEG) | Laplacian | Pz |
+| 6 | Paste TCRE Pz (eEEG) | Conventional | Pz |
+| 7 | Normal EEG Pz (disc) | Conventional disc | Pz |
+
+> Channels 1, 3, 5 are divided by 187 on load to normalize hardware tEEG amplitude.
+
+---
+
+## Signal Processing Pipeline
+
+All recordings share these parameters:
+
+| Parameter | Value |
+|-----------|-------|
+| Sampling rate | 1000 Hz |
+| Resolution | 0.1 µV / bit (INT16) |
+| Format | BrainVision (.eeg + .vhdr + .vmrk) |
+| Preprocessing | 60 Hz notch filter (Q=30) |
+| Welch PSD | nperseg = 4096 (0.244 Hz resolution) |
+| Alpha band | 8–13 Hz |
+| SSIM spectrograms | nperseg = 2048, max_freq = 45 Hz |
+
+### Analysis steps
+
+```
+Raw INT16 binary
+       │
+       ▼
+  Scale → µV  (+  /187 for Gel tEEG)
+       │
+       ▼
+  Parse .vmrk  →  stim blocks, open/close epochs
+       │
+       ▼
+  60 Hz notch
+       │
+       ├──► Welch PSD (4096)  →  Alpha SNR (dB)
+       │
+       ├──► Open/close epochs →  Alpha power open & closed
+       │                          Alpha reactivity = closed/open
+       │
+       ├──► Bandpass 8-13 Hz  →  Hilbert envelope
+       │                          Correlation with disc channel
+       │
+       ├──► Spectrogram SSIM  →  tEEG vs eEEG similarity per TCRE pair
+       │
+       └──► Pre-averaged .avg →  VEP peak-to-peak (if available)
+```
+
+---
+
+## Code Architecture
+
+### `src/eeg_analysis.py` — Core engine
+
+```
+ElectrodeConfig (dataclass)
+├── FELT_TCRE_CONFIG   — 11-ch preset
+└── GEL_TCRE_CONFIG    — 7-ch preset, with /187 scaling on tEEG channels
+
+detect_config_from_vhdr(vhdr_path)  — auto-selects config from header
+
+discover_subjects(data_dir, recursive, standard_protocol_only)
+load_subject(data_dir, subject_name, subject_info, config)
+    └── returns subject dict with "config" key attached
+
+analyze_subject(subject)
+    └── reads config from subject["config"], works for any layout
+
+plot_subject_summary(subject, results, ...)
+plot_subject_full(subject, results, ...)
+    └── all plots auto-sized to actual channel count
+```
+
+Backward-compatible constants (`N_CHANNELS`, `CH_LABELS`, `TCRE_PAIRS`, etc.) are
+aliases that still point to the Felt TCRE values — existing notebooks need no changes.
+
+### `src/comparison_analysis.py` — 3-way comparison
+
+```
+load_all_subjects(felt_dir, gel_dir, felt_names)
+    └── loads + analyzes both datasets in one call
+
+extract_type_metrics(subjects_results)
+    └── aggregates by abstract type: FELT_TEEG, GEL_TEEG, PASTE_TEEG,
+        FELT_EEEG, GEL_EEEG, PASTE_EEEG, DISC
+
+extract_psd_by_type(subjects_results)
+extract_open_closed_psd_by_type(subjects_results)
+
+compare_electrode_types(felt_subjects, gel_subjects)
+    └── Mann-Whitney U tests across all type pairs
+        includes Paste TCRE bridge validation
+
+plot_three_way_comparison(felt_subjects, gel_subjects, save_dir)
+    └── generates 6 comparison figures:
+        comparison_alpha_snr.png
+        comparison_alpha_reactivity.png
+        comparison_psd_teeg.png
+        comparison_open_vs_closed_psd.png
+        comparison_paste_bridge.png
+        (+ statistical summary printed to console)
+```
+
+---
+
+## Output Files
+
+Running `src/three_way_comparison.ipynb` produces these figures in
+`output/three_way_comparison/`:
+
+| File | Contents |
+|------|----------|
+| `comparison_alpha_snr.png` | Bar chart: Alpha SNR (dB) by electrode type |
+| `comparison_alpha_reactivity.png` | Bar chart: Closed/Open ratio by electrode type |
+| `comparison_psd_teeg.png` | PSD overlay: tEEG channels only, 1–30 Hz |
+| `comparison_open_vs_closed_psd.png` | Side-by-side open/closed PSD per type |
+| `comparison_paste_bridge.png` | Boxplots: Paste TCRE metrics across both setups |
+| `gel_individual/<basename>/` | Per-subject summary dashboards for Gel subjects |
+
+Running `src/single_subject_analysis_v2.ipynb` produces figures in
+`output/<subject_basename>/single_subject/`:
+
+| File | Contents |
+|------|----------|
+| `*_raw_traces.png` | All channels, full recording |
+| `*_psd_alpha_1_30hz.png` | Per-channel PSD with alpha highlight |
+| `*_spectrogram_ch??.png` | Per-channel time-frequency spectrogram |
+| `*_band_decomp_ch??.png` | Per-channel delta/theta/alpha/beta/gamma |
+| `*_alpha_envelope.png` | Alpha envelope with eyes open/close events |
+| `*_open_vs_closed.png` | Eyes open vs closed PSD comparison |
+| `*_alpha_reactivity.png` | Alpha reactivity bar chart |
+| `*_vep_comparison.png` | VEP waveform panels |
+| `*_disc_correlation.png` | Alpha envelope correlation with disc |
+| `*_adc_clipping.png` | ADC saturation report |
+| `*_ssim_pair*.png` | tEEG vs eEEG spectrogram comparison |
+| `*_ssim_summary.png` | SSIM bar chart for all TCRE pairs |
+| `*_summary.png` | 4-panel dashboard |
 
 ---
 
 ## Key Metrics
 
-The notebook computes four metrics to compare electrode types:
-
-| Metric | Definition | Why It Matters |
+| Metric | Definition | Interpretation |
 |--------|-----------|----------------|
-| **Alpha SNR** | Ratio of alpha power (8–13 Hz) to neighboring bands (4–8 + 13–30 Hz) in dB | Higher SNR = cleaner alpha detection relative to background |
-| **Alpha Reactivity** | Ratio of alpha power during eyes-closed vs eyes-open epochs | Values >1 indicate the Berger effect is detected — a basic validity check |
-| **Correlation with Disc** | Pearson r between a channel's alpha envelope and Ch11 | High r means the electrode tracks the same neural events as the gold standard |
-| **VEP Peak-to-Peak** | Max − min of the averaged evoked potential (−100 to +400 ms) | Measures the electrode's ability to detect stimulus-locked neural responses |
+| **Alpha SNR** | `10 * log10(alpha_power / neighbor_bands)` in dB | Higher = cleaner alpha relative to background |
+| **Alpha Reactivity** | `alpha_closed / alpha_open` | > 1 = Berger effect detected |
+| **Disc Correlation** | Pearson r of alpha envelope vs disc channel | Tracks same neural events as gold standard |
+| **VEP Peak-to-Peak** | max − min of averaged evoked potential | Stimulus-locked response amplitude |
+| **Spectrogram SSIM** | Structural similarity between tEEG and eEEG spectrograms per TCRE pair | High SSIM = tEEG and eEEG capture similar time-frequency content |
 
 ---
 
-## Known Limitations
+## Dependencies
 
-- **Channel mapping is inferred**, not confirmed from hardware documentation. The odd=conventional / even=tEEG pairing is based on amplitude characteristics (conventional channels clip at ±3276.7 µV; tEEG channels have 10–50× lower amplitude)
-- **Conventional channels clip** — Ch1, 3, 5, 7 frequently saturate the 16-bit ADC, which may bias power estimates upward
-- **No artifact rejection** — eye blinks, muscle activity, and movement artifacts are not removed. Consider ICA for cleaner results
-- **Limited eyes-closed epochs** — only 3 eyes-closed periods (~30 s each), limiting statistical power
-- **Electrode positions not documented** — the scalp locations of each CRE are not recorded in these files
-- **Last epoch is truncated** — Eyes Open #4 (342.5 s) has no closing marker; the notebook assumes 30 s duration
+```
+numpy
+scipy
+matplotlib
+scikit-image     # for SSIM computation
+specparam==2.0.0rc6  # optional: spectral parameterization
+```
+
+Install:
+
+```bash
+source venv/bin/activate
+pip install numpy scipy matplotlib scikit-image
+pip install specparam==2.0.0rc6  # optional
+```
 
 ---
 
-## Potential Next Steps
+## What Was Changed (Integration Summary)
 
-- Confirm channel mapping with hardware documentation or professor
-- Apply artifact rejection (ICA or threshold-based)
-- Add statistical testing (paired t-tests or permutation tests across epochs)
-- Record electrode positions for topographic mapping
-- Repeat with additional subjects for group-level analysis
+### Problem
+The Gel TCRE project used a separate MNE-based pipeline with different channel counts (7 vs 11),
+different amplitude scaling, and no common comparison framework.
+
+### Solution: Unified ElectrodeConfig System
+
+`eeg_analysis.py` was extended with an `ElectrodeConfig` dataclass:
+
+```python
+# Auto-detects which config to use from the .vhdr header
+subj = load_subject("data/", "TU2")              # → FELT_TCRE_CONFIG (11 ch)
+subj = load_subject("Gel TCRE/", subject_info=si) # → GEL_TCRE_CONFIG (7 ch)
+```
+
+Key compatibility facts confirmed:
+
+| | Felt TCRE | Gel TCRE |
+|--|-----------|---------|
+| Sampling rate | 1000 Hz | 1000 Hz |
+| Resolution | 0.1 µV/bit | 0.1 µV/bit |
+| File format | BrainVision INT16 | BrainVision INT16 |
+| Paradigm | Checkerboard + eyes open/close | Checkerboard + eyes open/close |
+| Paste TCRE present | Yes (Ch9–11) | Yes (Ch5–7) — bridge electrode |
+| tEEG scaling | Hardware output | Hardware output / 187 |
+
+### No Breaking Changes
+All existing notebooks (`single_subject_analysis_v2.ipynb`, `group_analysis.ipynb`) run
+unchanged. The `ElectrodeConfig` system is additive — backward-compatible constants
+`N_CHANNELS`, `CH_LABELS`, `TCRE_PAIRS` still work as before.

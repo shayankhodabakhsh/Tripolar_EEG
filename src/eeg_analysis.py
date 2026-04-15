@@ -5,6 +5,9 @@ Loads BrainVision format files (.eeg/.vhdr/.vmrk), performs spectral
 decomposition, and extracts key metrics comparing tEEG vs conventional
 electrodes for alpha-wave detection.
 
+Supports multiple electrode configurations (Felt TCRE, Gel TCRE) via
+the ElectrodeConfig system.
+
 Usage:
     from eeg_analysis import load_subject, analyze_subject, plot_subject_summary
 
@@ -24,6 +27,8 @@ import os
 import re
 import glob
 import warnings
+from dataclasses import dataclass, field
+from typing import List, Tuple, Optional, Dict
 
 try:
     from skimage.metrics import structural_similarity as ssim
@@ -34,47 +39,147 @@ except ImportError:
 warnings.filterwarnings("ignore")
 
 # ═══════════════════════════════════════════════════════
-# CONSTANTS
+# ELECTRODE CONFIGURATION SYSTEM
+# ═══════════════════════════════════════════════════════
+
+
+@dataclass
+class ElectrodeConfig:
+    """Defines the electrode layout for a recording type."""
+    name: str
+    n_channels: int
+    ch_labels: List[str]
+    short_labels: List[str]
+    idx_teeg: List[int]
+    idx_eeeg: List[int]
+    idx_paste_teeg: List[int]
+    idx_paste_eeeg: List[int]
+    idx_disc: List[int]
+    tcre_pairs: List[Tuple[int, int, str]]
+    # Per-channel amplitude scaling applied after int16->µV conversion.
+    # Maps channel index -> divisor (e.g. {0: 187} means ch0 /= 187).
+    amplitude_scaling: Dict[int, float] = field(default_factory=dict)
+    # Abstract channel-type tag for each channel (for cross-config comparison)
+    channel_types: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.short_labels:
+            self.short_labels = [f"Ch{i+1}" for i in range(self.n_channels)]
+
+
+FELT_TCRE_CONFIG = ElectrodeConfig(
+    name="Felt TCRE",
+    n_channels=11,
+    ch_labels=[
+        "Ch1 – Felt TCRE #1 (tEEG)",
+        "Ch2 – Felt TCRE #1 (eEEG)",
+        "Ch3 – Felt TCRE #2 (tEEG)",
+        "Ch4 – Felt TCRE #2 (eEEG)",
+        "Ch5 – Felt TCRE #3 (tEEG)",
+        "Ch6 – Felt TCRE #3 (eEEG)",
+        "Ch7 – Felt TCRE #4 (tEEG)",
+        "Ch8 – Felt TCRE #4 (eEEG)",
+        "Ch9 – Paste TCRE #5 (tEEG)",
+        "Ch10 – Paste TCRE #5 (eEEG)",
+        "Ch11 – Paste Disc (eEEG)",
+    ],
+    short_labels=[f"Ch{i+1}" for i in range(11)],
+    idx_teeg=[0, 2, 4, 6],
+    idx_eeeg=[1, 3, 5, 7],
+    idx_paste_teeg=[8],
+    idx_paste_eeeg=[9],
+    idx_disc=[10],
+    tcre_pairs=[
+        (0, 1, "Felt TCRE #1"),
+        (2, 3, "Felt TCRE #2"),
+        (4, 5, "Felt TCRE #3"),
+        (6, 7, "Felt TCRE #4"),
+        (8, 9, "Paste TCRE #5"),
+    ],
+    amplitude_scaling={},
+    channel_types=[
+        "FELT_TEEG", "FELT_EEEG", "FELT_TEEG", "FELT_EEEG",
+        "FELT_TEEG", "FELT_EEEG", "FELT_TEEG", "FELT_EEEG",
+        "PASTE_TEEG", "PASTE_EEEG", "DISC",
+    ],
+)
+
+GEL_TCRE_CONFIG = ElectrodeConfig(
+    name="Gel TCRE",
+    n_channels=7,
+    ch_labels=[
+        "Ch1 – Gel TCRE O1 (tEEG)",
+        "Ch2 – Gel TCRE O1 (eEEG)",
+        "Ch3 – Gel TCRE O2 (tEEG)",
+        "Ch4 – Gel TCRE O2 (eEEG)",
+        "Ch5 – Paste TCRE Pz (tEEG)",
+        "Ch6 – Paste TCRE Pz (eEEG)",
+        "Ch7 – Normal EEG Pz (disc)",
+    ],
+    short_labels=[f"Ch{i+1}" for i in range(7)],
+    idx_teeg=[0, 2],
+    idx_eeeg=[1, 3],
+    idx_paste_teeg=[4],
+    idx_paste_eeeg=[5],
+    idx_disc=[6],
+    tcre_pairs=[
+        (0, 1, "Gel TCRE O1"),
+        (2, 3, "Gel TCRE O2"),
+        (4, 5, "Paste TCRE Pz"),
+    ],
+    amplitude_scaling={0: 187.0, 2: 187.0, 4: 187.0},
+    channel_types=[
+        "GEL_TEEG", "GEL_EEEG", "GEL_TEEG", "GEL_EEEG",
+        "PASTE_TEEG", "PASTE_EEEG", "DISC",
+    ],
+)
+
+CONFIG_BY_NCHAN = {
+    11: FELT_TCRE_CONFIG,
+    7: GEL_TCRE_CONFIG,
+}
+
+
+def detect_config_from_vhdr(vhdr_path):
+    """Read NumberOfChannels from a .vhdr header and return the matching config."""
+    n_ch = None
+    with open(vhdr_path, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            if line.strip().startswith("NumberOfChannels"):
+                n_ch = int(line.split("=")[1].strip())
+                break
+    if n_ch is None:
+        raise ValueError(f"Could not parse NumberOfChannels from {vhdr_path}")
+    config = CONFIG_BY_NCHAN.get(n_ch)
+    if config is None:
+        raise ValueError(
+            f"No electrode config for {n_ch} channels. "
+            f"Known configs: {list(CONFIG_BY_NCHAN.keys())}"
+        )
+    return config
+
+
+# ═══════════════════════════════════════════════════════
+# BACKWARD-COMPATIBLE CONSTANTS (Felt TCRE defaults)
 # ═══════════════════════════════════════════════════════
 
 N_CHANNELS = 11
 FS = 1000  # Hz
 RESOLUTION = 0.1  # µV per bit
 
-# Channel labels (confirmed: odd=tEEG Laplacian / even=eEEG conventional)
-CH_LABELS = [
-    "Ch1 – Felt TCRE #1 (tEEG)",
-    "Ch2 – Felt TCRE #1 (eEEG)",
-    "Ch3 – Felt TCRE #2 (tEEG)",
-    "Ch4 – Felt TCRE #2 (eEEG)",
-    "Ch5 – Felt TCRE #3 (tEEG)",
-    "Ch6 – Felt TCRE #3 (eEEG)",
-    "Ch7 – Felt TCRE #4 (tEEG)",
-    "Ch8 – Felt TCRE #4 (eEEG)",
-    "Ch9 – Paste TCRE #5 (tEEG)",
-    "Ch10 – Paste TCRE #5 (eEEG)",
-    "Ch11 – Paste Disc (eEEG)",
-]
-SHORT_LABELS = [f"Ch{i+1}" for i in range(N_CHANNELS)]
+ADC_CLIP_UV = 3276.6
 
-# Electrode type grouping (0-indexed)
-IDX_FELT_TEEG = [0, 2, 4, 6]       # Ch1,3,5,7 – Felt TCRE tEEG (Laplacian)
-IDX_FELT_EEEG = [1, 3, 5, 7]       # Ch2,4,6,8 – Felt TCRE eEEG (conventional)
-IDX_PASTE_TEEG = [8]                # Ch9 – Paste TCRE tEEG
-IDX_PASTE_EEEG = [9]                # Ch10 – Paste TCRE eEEG
-IDX_DISC = [10]                     # Ch11 – Paste conventional disc
+CH_LABELS = FELT_TCRE_CONFIG.ch_labels
+SHORT_LABELS = FELT_TCRE_CONFIG.short_labels
 
-# Paired tEEG/eEEG channels from the same TCRE (0-indexed)
-# Each tuple: (tEEG_idx, eEEG_idx, label)
-TCRE_PAIRS = [
-    (0, 1, "Felt TCRE #1"),
-    (2, 3, "Felt TCRE #2"),
-    (4, 5, "Felt TCRE #3"),
-    (6, 7, "Felt TCRE #4"),
-    (8, 9, "Paste TCRE #5"),
-]
+IDX_FELT_TEEG = FELT_TCRE_CONFIG.idx_teeg
+IDX_FELT_EEEG = FELT_TCRE_CONFIG.idx_eeeg
+IDX_PASTE_TEEG = FELT_TCRE_CONFIG.idx_paste_teeg
+IDX_PASTE_EEEG = FELT_TCRE_CONFIG.idx_paste_eeeg
+IDX_DISC = FELT_TCRE_CONFIG.idx_disc
 
-# EEG frequency bands
+TCRE_PAIRS = FELT_TCRE_CONFIG.tcre_pairs
+
 BANDS = {
     "Delta": (1, 4),
     "Theta": (4, 8),
@@ -90,7 +195,6 @@ BAND_COLORS = {
     "Gamma": "#c0392b",
 }
 
-# Color scheme by electrode type
 ELEC_LEGEND = [
     Patch(facecolor="#3498db", label="Felt tEEG (Ch1,3,5,7)"),
     Patch(facecolor="#95a5a6", label="Felt eEEG (Ch2,4,6,8)"),
@@ -107,15 +211,17 @@ EVENT_LEGEND = [
 ]
 
 
-def ch_color(i):
-    """Get color for channel index (0-based)."""
-    if i in IDX_FELT_TEEG:
+def ch_color(i, config=None):
+    """Get color for channel index (0-based). Uses config if provided."""
+    if config is None:
+        config = FELT_TCRE_CONFIG
+    if i in config.idx_teeg:
         return "#3498db"
-    if i in IDX_PASTE_TEEG:
+    if i in config.idx_paste_teeg:
         return "#2ecc71"
-    if i in IDX_DISC:
+    if i in config.idx_disc:
         return "#e74c3c"
-    if i in IDX_PASTE_EEEG:
+    if i in config.idx_paste_eeeg:
         return "#9b59b6"
     return "#95a5a6"
 
@@ -145,17 +251,68 @@ def compute_envelope(data, smooth_s=1.0, fs=FS):
     return np.convolve(env, kernel, mode="same")
 
 
+def _max_run_length(mask_1d: np.ndarray) -> int:
+    """Return the longest consecutive True-run length in a 1D boolean array."""
+    if mask_1d.size == 0:
+        return 0
+    m = np.asarray(mask_1d, dtype=bool)
+    if not np.any(m):
+        return 0
+    x = np.concatenate(([False], m, [False])).astype(np.int8)
+    d = np.diff(x)
+    starts = np.where(d == 1)[0]
+    ends = np.where(d == -1)[0]
+    if starts.size == 0 or ends.size == 0:
+        return int(m.sum())
+    return int(np.max(ends - starts))
+
+
+def compute_adc_clipping(eeg_uv: np.ndarray, threshold_uv: float = ADC_CLIP_UV,
+                         n_channels: int = None):
+    """
+    Detect likely ADC clipping (saturation) in µV-scaled EEG.
+
+    Args:
+        eeg_uv: shape (n_channels, n_samples) in µV (post `RESOLUTION` scaling)
+        threshold_uv: values with abs(x) >= threshold are considered clipped
+        n_channels: expected channel count (auto-detected from array if None)
+
+    Returns:
+        dict with per-channel arrays:
+          - clip_count: number of clipped samples
+          - clip_fraction: fraction of samples clipped
+          - clip_max_run_samples: longest consecutive clipped run length
+    """
+    x = np.asarray(eeg_uv)
+    if n_channels is None:
+        n_channels = x.shape[0]
+    if x.ndim != 2 or x.shape[0] != n_channels:
+        raise ValueError(f"Expected eeg_uv shape ({n_channels}, n_samples), got {x.shape}")
+    mask = np.abs(x) >= float(threshold_uv)
+    clip_count = mask.sum(axis=1).astype(int)
+    n = x.shape[1]
+    clip_fraction = clip_count / max(n, 1)
+    clip_max_run_samples = np.array([_max_run_length(mask[i]) for i in range(n_channels)], dtype=int)
+    return {
+        "clip_count": clip_count,
+        "clip_fraction": clip_fraction,
+        "clip_max_run_samples": clip_max_run_samples,
+        "threshold_uv": float(threshold_uv),
+    }
+
+
 def cohens_d(group1, group2):
     """
-    Compute Cohen's d effect size for paired samples.
+    Compute Cohen's d effect size for two independent groups.
 
-    Uses the pooled standard deviation. Returns NaN if insufficient data.
+    Uses the pooled standard deviation. Handles unequal group sizes.
+    Returns NaN if insufficient data.
     """
     g1 = np.asarray(group1, dtype=float)
     g2 = np.asarray(group2, dtype=float)
-    valid = ~(np.isnan(g1) | np.isnan(g2))
-    g1, g2 = g1[valid], g2[valid]
-    if len(g1) < 2:
+    g1 = g1[~np.isnan(g1)]
+    g2 = g2[~np.isnan(g2)]
+    if len(g1) < 2 or len(g2) < 2:
         return np.nan
     n1, n2 = len(g1), len(g2)
     s_pooled = np.sqrt(((n1 - 1) * g1.std(ddof=1) ** 2 +
@@ -169,8 +326,8 @@ def compute_spectrogram_ssim(subject, nperseg=2048, max_freq=45):
     """
     Compute SSIM between paired tEEG/eEEG spectrogram images from the same TCRE.
 
-    For each of the 5 TCRE pairs, we generate log-power spectrograms, normalize
-    both to a shared dB range, and compute SSIM on the resulting images.
+    For each TCRE pair (from subject's config), we generate log-power
+    spectrograms, normalize both to a shared dB range, and compute SSIM.
 
     Args:
         subject: dict from load_subject()
@@ -179,16 +336,19 @@ def compute_spectrogram_ssim(subject, nperseg=2048, max_freq=45):
 
     Returns:
         dict with:
-            - ssim_values: list of 5 SSIM scores (one per TCRE pair)
-            - pair_labels: list of 5 pair labels
+            - ssim_values: list of SSIM scores (one per TCRE pair)
+            - pair_labels: list of pair labels
             - spectrogram_pairs: list of (Sxx_teeg, Sxx_eeeg, f, t) for plotting
     """
+    cfg = subject.get("config", FELT_TCRE_CONFIG)
+    tcre_pairs = cfg.tcre_pairs
+
     if not HAS_SSIM:
         warnings.warn("scikit-image not installed — SSIM unavailable. "
                        "Install with: pip install scikit-image")
         return {
-            "ssim_values": [np.nan] * len(TCRE_PAIRS),
-            "pair_labels": [p[2] for p in TCRE_PAIRS],
+            "ssim_values": [np.nan] * len(tcre_pairs),
+            "pair_labels": [p[2] for p in tcre_pairs],
             "spectrogram_pairs": [],
         }
 
@@ -197,7 +357,7 @@ def compute_spectrogram_ssim(subject, nperseg=2048, max_freq=45):
     pair_labels = []
     spectrogram_pairs = []
 
-    for teeg_idx, eeeg_idx, label in TCRE_PAIRS:
+    for teeg_idx, eeeg_idx, label in tcre_pairs:
         # Compute spectrograms for both channels
         cleaned_t = notch_filter(eeg[teeg_idx])
         cleaned_e = notch_filter(eeg[eeeg_idx])
@@ -270,48 +430,48 @@ def add_event_markers(ax, events_oc, stim_blocks, close_epochs,
 # ═══════════════════════════════════════════════════════
 
 
-def discover_subjects(data_dir):
+def discover_subjects(data_dir, recursive=False, standard_protocol_only=False):
     """
     Auto-discover all subjects in a data directory.
+
+    Args:
+        data_dir: path to data directory
+        recursive: if True, scan subdirectories (for Gel TCRE date-based folders)
+        standard_protocol_only: if True, only include recordings that have
+            both stimulus events and eyes open/close markers in their .vmrk
 
     Returns a list of dicts with subject info:
         [{'name': 'SK1', 'eeg': '...eeg', 'vhdr': '...vhdr', 'vmrk': '...vmrk',
           'avg': '...avg', 'avg_vhdr': '...vhdr', 'avg_vmrk': '...vmrk'}, ...]
     """
-    eeg_files = sorted(glob.glob(os.path.join(data_dir, "*.eeg")))
+    if recursive:
+        eeg_files = sorted(glob.glob(os.path.join(data_dir, "**", "*.eeg"),
+                                     recursive=True))
+    else:
+        eeg_files = sorted(glob.glob(os.path.join(data_dir, "*.eeg")))
     subjects = []
 
     for eeg_path in eeg_files:
         basename = os.path.basename(eeg_path)
-        # Skip trigger avg files
         if "Trigger" in basename or "trigger" in basename:
             continue
 
-        prefix = os.path.splitext(eeg_path)[0]  # full path without .eeg
-        dir_path = os.path.dirname(eeg_path)
+        prefix = os.path.splitext(eeg_path)[0]
 
-        # Derive name: everything before the date pattern
         name_part = os.path.basename(prefix)
-        # Try to extract a clean subject name (before date-like patterns)
-        # Handles: "SK1 2-19-2026", "SK1_2-19-2026", "Caitlin 1 2-11-26",
-        #          "Hunter1 217-26", "LuciTest", "Gab"
         match = re.match(
             r"^(.+?)[\s_]+\d{1,4}[-]\d{1,2}[-]\d{2,4}", name_part
         )
         if not match:
-            # Try without separator (e.g. "Hunter1 217-26")
             match = re.match(r"^(.+?)[\s_]+\d{2,4}-\d{2,4}", name_part)
         if match:
-            subj_name = match.group(1).strip().rstrip("_")
+            subj_name = match.group(1).strip().rstrip("_").rstrip("-")
         else:
-            # Fallback: just use the full basename
             subj_name = name_part
 
-        # Find associated files
         vhdr = prefix + ".vhdr"
         vmrk = prefix + ".vmrk"
 
-        # Find Triggers files (may have slight name variations)
         avg_files = glob.glob(prefix + "-Triggers.avg") + glob.glob(prefix + "-Trigg*.avg")
         avg_vhdr = glob.glob(prefix + "-Triggers.vhdr") + glob.glob(prefix + "-Trigg*.vhdr")
         avg_vmrk = glob.glob(prefix + "-Triggers.vmrk") + glob.glob(prefix + "-Trigg*.vmrk")
@@ -326,6 +486,14 @@ def discover_subjects(data_dir):
             "avg_vhdr": avg_vhdr[0] if avg_vhdr else None,
             "avg_vmrk": avg_vmrk[0] if avg_vmrk else None,
         }
+
+        if standard_protocol_only and subj["vmrk"]:
+            stim_samples, events_oc = parse_vmrk(subj["vmrk"])
+            has_open = any(lbl == "open" for lbl, _ in events_oc)
+            has_close = any(lbl == "close" for lbl, _ in events_oc)
+            if not (stim_samples and has_open and has_close):
+                continue
+
         subjects.append(subj)
 
     return subjects
@@ -376,7 +544,7 @@ def parse_vmrk(vmrk_path):
     return stim_samples, events_oc
 
 
-def load_subject(data_dir, subject_name=None, subject_info=None):
+def load_subject(data_dir, subject_name=None, subject_info=None, config=None):
     """
     Load a single subject's data.
 
@@ -384,11 +552,11 @@ def load_subject(data_dir, subject_name=None, subject_info=None):
         data_dir: path to data directory
         subject_name: subject name (will auto-discover files)
         subject_info: dict from discover_subjects() (overrides subject_name)
+        config: ElectrodeConfig to use. If None, auto-detects from .vhdr header.
 
     Returns:
-        dict with all loaded data and metadata
+        dict with all loaded data and metadata, including 'config' key
     """
-    # Find subject files
     if subject_info is None:
         subjects = discover_subjects(data_dir)
         matches = [s for s in subjects if s["name"] == subject_name or
@@ -400,25 +568,32 @@ def load_subject(data_dir, subject_name=None, subject_info=None):
             )
         subject_info = matches[0]
 
-    # Load raw EEG
+    if config is None and subject_info.get("vhdr"):
+        config = detect_config_from_vhdr(subject_info["vhdr"])
+    elif config is None:
+        config = FELT_TCRE_CONFIG
+
+    n_ch = config.n_channels
+
     raw = np.fromfile(subject_info["eeg"], dtype=np.int16)
-    n_samples = len(raw) // N_CHANNELS
-    eeg = raw[: n_samples * N_CHANNELS].reshape(n_samples, N_CHANNELS).T.astype(
-        np.float64
-    )
-    eeg *= RESOLUTION  # → µV
+    n_samples = len(raw) // n_ch
+    eeg = raw[: n_samples * n_ch].reshape(n_samples, n_ch).T.astype(np.float64)
+    eeg *= RESOLUTION
+
+    # Apply per-channel amplitude scaling (e.g. /187 for Gel tEEG)
+    for ch_idx, divisor in config.amplitude_scaling.items():
+        if ch_idx < n_ch:
+            eeg[ch_idx] /= divisor
+
     t = np.arange(n_samples) / FS
 
-    # Parse markers
     stim_samples, events_oc = [], []
     if subject_info["vmrk"]:
         stim_samples, events_oc = parse_vmrk(subject_info["vmrk"])
 
-    # Compute stim block boundaries
     stim_blocks = []
     if stim_samples:
         stim_times = np.array(stim_samples) / FS
-        # Find gaps > 5s to separate blocks
         gaps = np.where(np.diff(stim_times) > 5)[0]
         block_starts = [0] + (gaps + 1).tolist()
         block_ends = gaps.tolist() + [len(stim_times) - 1]
@@ -427,7 +602,6 @@ def load_subject(data_dir, subject_name=None, subject_info=None):
                 (stim_times[bs_idx] - 0.5, stim_times[be_idx] + 0.5)
             )
 
-    # Build open/close epochs
     epochs_oc = []
     for i in range(len(events_oc) - 1):
         lbl, start = events_oc[i]
@@ -459,14 +633,12 @@ def load_subject(data_dir, subject_name=None, subject_info=None):
     open_epochs = [ep for ep in epochs_oc if ep["label"] == "open"]
     close_epochs = [ep for ep in epochs_oc if ep["label"] == "close"]
 
-    # Load pre-averaged VEP if available
     avg_data = None
     avg_t = None
     avg_n_segments = None
     if subject_info.get("avg") and os.path.exists(subject_info["avg"]):
         avg_raw = np.fromfile(subject_info["avg"], dtype=np.float32)
-        # Parse avg_vhdr to get segment points
-        avg_pts = 500  # default
+        avg_pts = 500
         if subject_info.get("avg_vhdr") and os.path.exists(subject_info["avg_vhdr"]):
             with open(subject_info["avg_vhdr"], "r", errors="ignore") as f:
                 for line in f:
@@ -474,16 +646,15 @@ def load_subject(data_dir, subject_name=None, subject_info=None):
                         avg_pts = int(line.split("=")[1].strip())
                     if "AveragedSegments" in line:
                         avg_n_segments = int(line.split("=")[1].strip())
-        if len(avg_raw) >= avg_pts * N_CHANNELS:
-            avg_data = avg_raw[: avg_pts * N_CHANNELS].reshape(
-                avg_pts, N_CHANNELS
-            ).T
-            avg_t = np.arange(avg_pts) / FS * 1000 - 100  # ms
+        if len(avg_raw) >= avg_pts * n_ch:
+            avg_data = avg_raw[: avg_pts * n_ch].reshape(avg_pts, n_ch).T
+            avg_t = np.arange(avg_pts) / FS * 1000 - 100
 
     return {
         "name": subject_info["name"],
         "basename": subject_info["basename"],
         "info": subject_info,
+        "config": config,
         "eeg": eeg,
         "t": t,
         "n_samples": n_samples,
@@ -508,40 +679,44 @@ def analyze_subject(subject):
     """
     Run full analysis on a loaded subject.
 
+    Reads electrode config from subject['config'] (defaults to FELT_TCRE_CONFIG).
+
     Returns dict with per-channel metrics:
         - alpha_snr: alpha SNR in dB (alpha vs neighboring bands)
         - alpha_open: mean alpha power during eyes-open
         - alpha_closed: mean alpha power during eyes-closed
         - alpha_reactivity: ratio closed/open (>1 = Berger effect)
         - alpha_envelopes: smoothed alpha envelope per channel
-        - disc_correlation: Pearson r of alpha envelope vs Ch11
+        - disc_correlation: Pearson r of alpha envelope vs disc channel
         - vep_p2p: VEP peak-to-peak amplitude (if avg available)
     """
+    cfg = subject.get("config", FELT_TCRE_CONFIG)
+    n_ch = cfg.n_channels
+
     eeg = subject["eeg"]
     n_samples = subject["n_samples"]
     open_epochs = subject["open_epochs"]
     close_epochs = subject["close_epochs"]
+
+    clip = compute_adc_clipping(eeg, threshold_uv=ADC_CLIP_UV, n_channels=n_ch)
 
     alpha_snr = []
     alpha_open = []
     alpha_closed = []
     alpha_envelopes = []
 
-    for i in range(N_CHANNELS):
+    for i in range(n_ch):
         cleaned = notch_filter(eeg[i])
 
-        # ─── Alpha SNR (whole recording) ───
         f, pxx = signal.welch(cleaned, fs=FS, nperseg=4096)
         ap = np.mean(pxx[(f >= 8) & (f <= 13)])
         nap = np.mean(pxx[((f >= 4) & (f < 8)) | ((f > 13) & (f <= 30))])
         alpha_snr.append(10 * np.log10(ap / (nap + 1e-10)))
 
-        # ─── Alpha envelope ───
         alpha_bp = bandpass_filter(cleaned, 8, 13)
         env = compute_envelope(alpha_bp)
         alpha_envelopes.append(env)
 
-        # ─── Eyes open/close alpha power ───
         if open_epochs and close_epochs:
             open_data = np.concatenate(
                 [cleaned[ep["start"] : ep["end"]] for ep in open_epochs]
@@ -557,32 +732,38 @@ def analyze_subject(subject):
             alpha_open.append(np.nan)
             alpha_closed.append(np.nan)
 
-    # ─── Alpha reactivity ───
     alpha_reactivity = np.array(alpha_closed) / (np.array(alpha_open) + 1e-10)
 
-    # ─── Correlation with disc (Ch11) ───
+    # Correlation with disc channel (last idx_disc entry, or skip if none)
     ds = 10
-    ref_env = alpha_envelopes[10][::ds]
     disc_corr = []
-    for i in range(N_CHANNELS):
-        env_ds = alpha_envelopes[i][::ds]
-        r = np.corrcoef(ref_env, env_ds)[0, 1]
-        disc_corr.append(r)
+    if cfg.idx_disc:
+        ref_idx = cfg.idx_disc[0]
+        ref_env = alpha_envelopes[ref_idx][::ds]
+        for i in range(n_ch):
+            env_ds = alpha_envelopes[i][::ds]
+            r = np.corrcoef(ref_env, env_ds)[0, 1]
+            disc_corr.append(r)
+    else:
+        disc_corr = [np.nan] * n_ch
 
-    # ─── VEP peak-to-peak ───
     vep_p2p = []
     if subject["avg_data"] is not None:
-        for i in range(N_CHANNELS):
+        for i in range(n_ch):
             vep_p2p.append(
                 subject["avg_data"][i].max() - subject["avg_data"][i].min()
             )
     else:
-        vep_p2p = [np.nan] * N_CHANNELS
+        vep_p2p = [np.nan] * n_ch
 
-    # ─── Spectrogram SSIM (tEEG vs eEEG per TCRE pair) ───
     ssim_results = compute_spectrogram_ssim(subject)
 
     return {
+        "config": cfg,
+        "adc_clip_threshold_uv": clip["threshold_uv"],
+        "adc_clip_count": clip["clip_count"],
+        "adc_clip_fraction": clip["clip_fraction"],
+        "adc_clip_max_run_samples": clip["clip_max_run_samples"],
         "alpha_snr": np.array(alpha_snr),
         "alpha_open": np.array(alpha_open),
         "alpha_closed": np.array(alpha_closed),
@@ -644,43 +825,44 @@ def plot_subject_summary(subject, results, save_dir=None, show=True):
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
 
+    cfg = subject.get("config", FELT_TCRE_CONFIG)
+    n_ch = cfg.n_channels
     name = subject["name"]
-    colors = [ch_color(i) for i in range(N_CHANNELS)]
+    colors = [ch_color(i, cfg) for i in range(n_ch)]
+    short_labels = cfg.short_labels
 
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
-    fig.suptitle(f"Summary Dashboard — {name}", fontsize=14, fontweight="bold")
+    fig.suptitle(f"Summary Dashboard — {name} ({cfg.name})",
+                 fontsize=14, fontweight="bold")
 
-    # 1. Alpha SNR
-    axes[0].bar(range(N_CHANNELS), results["alpha_snr"], color=colors,
+    axes[0].bar(range(n_ch), results["alpha_snr"], color=colors,
                 edgecolor="k", lw=0.5)
-    axes[0].set_xticks(range(N_CHANNELS))
-    axes[0].set_xticklabels(SHORT_LABELS, fontsize=7)
+    axes[0].set_xticks(range(n_ch))
+    axes[0].set_xticklabels(short_labels, fontsize=7)
     axes[0].set_ylabel("dB")
     axes[0].set_title("Alpha SNR")
     axes[0].axhline(0, color="gray", lw=0.5)
 
-    # 2. Alpha Reactivity
-    axes[1].bar(range(N_CHANNELS), results["alpha_reactivity"], color=colors,
+    axes[1].bar(range(n_ch), results["alpha_reactivity"], color=colors,
                 edgecolor="k", lw=0.5)
-    axes[1].set_xticks(range(N_CHANNELS))
-    axes[1].set_xticklabels(SHORT_LABELS, fontsize=7)
+    axes[1].set_xticks(range(n_ch))
+    axes[1].set_xticklabels(short_labels, fontsize=7)
     axes[1].set_ylabel("Closed / Open")
     axes[1].set_title("Alpha Reactivity")
     axes[1].axhline(1, color="gray", lw=0.5, ls="--")
 
-    # 3. Disc Correlation
-    axes[2].bar(range(N_CHANNELS), results["disc_correlation"], color=colors,
+    disc_label = f"Corr. with Disc (Ch{cfg.idx_disc[0]+1})" if cfg.idx_disc else "Disc Corr."
+    axes[2].bar(range(n_ch), results["disc_correlation"], color=colors,
                 edgecolor="k", lw=0.5)
-    axes[2].set_xticks(range(N_CHANNELS))
-    axes[2].set_xticklabels(SHORT_LABELS, fontsize=7)
+    axes[2].set_xticks(range(n_ch))
+    axes[2].set_xticklabels(short_labels, fontsize=7)
     axes[2].set_ylabel("Pearson r")
-    axes[2].set_title("Corr. with Disc (Ch11)")
+    axes[2].set_title(disc_label)
 
-    # 4. VEP P2P
-    axes[3].bar(range(N_CHANNELS), results["vep_p2p"], color=colors,
+    axes[3].bar(range(n_ch), results["vep_p2p"], color=colors,
                 edgecolor="k", lw=0.5)
-    axes[3].set_xticks(range(N_CHANNELS))
-    axes[3].set_xticklabels(SHORT_LABELS, fontsize=7)
+    axes[3].set_xticks(range(n_ch))
+    axes[3].set_xticklabels(short_labels, fontsize=7)
     axes[3].set_ylabel("µV")
     axes[3].set_title("VEP Peak-to-Peak")
     axes[3].legend(handles=ELEC_LEGEND, fontsize=6, loc="upper right")
@@ -700,11 +882,15 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
     Generate the full set of per-subject figures (spectrograms, band
     decomposition, alpha envelopes, PSD, VEP, etc.).
 
-    This is the plotting equivalent of the single-subject notebook.
-    Saves individual figure files to save_dir.
+    Reads electrode config from subject['config']. Works with any layout
+    (Felt TCRE 11-ch, Gel TCRE 7-ch, etc.).
     """
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
+
+    cfg = subject.get("config", FELT_TCRE_CONFIG)
+    n_ch = cfg.n_channels
+    ch_labels = cfg.ch_labels
 
     eeg = subject["eeg"]
     t = subject["t"]
@@ -725,10 +911,13 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
             plt.close(fig)
 
     # ─── 1. Raw traces ───
-    fig, axes = plt.subplots(11, 1, figsize=(18, 22), sharex=True)
-    fig.suptitle(f"Raw EEG (µV) — {name}", fontsize=14, fontweight="bold", y=1.0)
+    fig, axes = plt.subplots(n_ch, 1, figsize=(18, max(12, n_ch * 2)), sharex=True)
+    if n_ch == 1:
+        axes = [axes]
+    fig.suptitle(f"Raw EEG (µV) — {name} ({cfg.name})",
+                 fontsize=14, fontweight="bold", y=1.0)
     ds = 10
-    for i in range(N_CHANNELS):
+    for i in range(n_ch):
         ax = axes[i]
         ax.plot(t[::ds], eeg[i, ::ds], lw=0.3, color="#2c3e50")
         ax.set_ylabel(f"Ch{i+1}", fontsize=9)
@@ -742,31 +931,92 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
     plt.tight_layout()
     _save_or_show(fig, f"{name}_raw_traces.png")
 
-    # ─── 2. PSD (notch filtered, 1-30 Hz) ───
-    fig, axes = plt.subplots(6, 2, figsize=(16, 20))
-    fig.suptitle(f"PSD After 60 Hz Notch — {name}", fontsize=14, fontweight="bold", y=1.0)
-    for i in range(N_CHANNELS):
+    # ─── 2. PSD — Alpha focus (1–30 Hz), after 60 Hz notch ───
+    nrows_psd = (n_ch + 1) // 2
+    fig, axes = plt.subplots(nrows_psd, 2, figsize=(16, nrows_psd * 3.3))
+    fig.suptitle(f"PSD After 60 Hz Notch — {name} ({cfg.name})",
+                 fontsize=14, fontweight="bold", y=1.0)
+
+    sm = None
+    alpha_results_sp = None
+    try:
+        from specparam import SpectralModel  # type: ignore
+        sm = SpectralModel(peak_width_limits=[1, 8], max_n_peaks=6,
+                           aperiodic_mode="fixed")
+        alpha_results_sp = []
+    except Exception:
+        pass
+
+    for i in range(n_ch):
         ax = axes.flatten()[i]
         cleaned = notch_filter(eeg[i])
-        f, pxx = signal.welch(cleaned, fs=FS, nperseg=4096)
+        f, pxx = signal.welch(cleaned, fs=FS, nperseg=2048)
         mask = (f >= 1) & (f <= 30)
-        ax.plot(f[mask], pxx[mask], lw=1.5, color="#2c3e50")
+        ax.semilogy(f[mask], pxx[mask], lw=1.5, color="#2c3e50")
         amask = (f >= 8) & (f <= 13) & mask
         ax.fill_between(f[amask], pxx[amask], alpha=0.4, color="#e67e22", label="Alpha")
-        ax.set_title(CH_LABELS[i], fontsize=9, fontweight="bold")
-        ax.set_xlabel("Hz", fontsize=8)
-        ax.set_ylabel("µV²/Hz", fontsize=8)
+
+        if sm is not None and alpha_results_sp is not None:
+            sm.fit(f, pxx, [1, 30])
+            peaks = sm.get_params("peak")
+            aperiodic = sm.get_params("aperiodic")
+            r_squared = float(np.squeeze(sm.get_metrics("gof", "rsquared")))
+            peaks = np.asarray(peaks)
+            if peaks.size > 0 and peaks.ndim == 1:
+                peaks = peaks.reshape(1, -1)
+            reliable = True
+            try:
+                if float(aperiodic[1]) < 0.3:
+                    reliable = False
+            except Exception:
+                reliable = False
+            alpha_peaks = []
+            if peaks.size > 0:
+                alpha_mask_p = (peaks[:, 0] >= 8) & (peaks[:, 0] <= 13)
+                alpha_peaks = peaks[alpha_mask_p]
+            if len(alpha_peaks) > 0:
+                best = alpha_peaks[np.argmax(alpha_peaks[:, 1])]
+                alpha_results_sp.append({
+                    "channel": ch_labels[i], "alpha_freq": float(best[0]),
+                    "alpha_amp": float(best[1]), "offset": float(aperiodic[0]),
+                    "exponent": float(aperiodic[1]), "r_squared": r_squared,
+                    "reliable": reliable,
+                })
+                ax.axvline(float(best[0]), color="red", ls="--", alpha=0.5,
+                           label=f"α={float(best[0]):.1f} Hz")
+            else:
+                alpha_results_sp.append({
+                    "channel": ch_labels[i], "alpha_freq": None, "alpha_amp": 0.0,
+                    "offset": float(aperiodic[0]) if np.size(aperiodic) > 0 else np.nan,
+                    "exponent": float(aperiodic[1]) if np.size(aperiodic) > 1 else np.nan,
+                    "r_squared": r_squared, "reliable": reliable,
+                })
+
+        ax.set_title(ch_labels[i], fontsize=9, fontweight="bold")
         ax.legend(fontsize=7)
         ax.tick_params(labelsize=7)
-    axes.flatten()[11].set_visible(False)
+    for j in range(n_ch, len(axes.flatten())):
+        axes.flatten()[j].set_visible(False)
     plt.tight_layout()
-    _save_or_show(fig, f"{name}_psd.png")
+    _save_or_show(fig, f"{name}_psd_alpha_1_30hz.png")
 
-    # ─── 3. Spectrograms ───
-    for i in range(N_CHANNELS):
+    if alpha_results_sp is not None:
+        print(f"\n{'Channel':<35} {'Alpha':<30} {'Aperiodic':<30} {'R²':<8} {'Quality'}")
+        print("=" * 110)
+        for r in alpha_results_sp:
+            if r["alpha_freq"] is not None:
+                alpha_str = f"α = {r['alpha_freq']:.2f} Hz, amp = {r['alpha_amp']:.2f}"
+            else:
+                alpha_str = "No alpha"
+            aperiodic_str = f"offset={r['offset']:.2f}, slope={r['exponent']:.2f}"
+            quality = "OK" if r["reliable"] else "poor aperiodic fit"
+            print(f"{r['channel']:<35} {alpha_str:<30} {aperiodic_str:<30} {r['r_squared']:.2f}    {quality}")
+
+    # ─── 3. Spectrograms — per channel ───
+    for i in range(n_ch):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 7),
                                         gridspec_kw={"height_ratios": [1, 3]})
-        fig.suptitle(f"Spectrogram — {name} — {CH_LABELS[i]}", fontsize=12, fontweight="bold")
+        fig.suptitle(f"Spectrogram — {name} — {ch_labels[i]}", fontsize=12, fontweight="bold")
         cleaned = notch_filter(eeg[i])
         bp = bandpass_filter(cleaned, 1, 45)
         ax1.plot(t[::ds], bp[::ds], lw=0.3, color="#34495e")
@@ -775,7 +1025,7 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
                           text_labels=True)
         nperseg = 2048
         f_s, t_s, Sxx = signal.spectrogram(cleaned, fs=FS, nperseg=nperseg,
-                                            noverlap=nperseg // 2, nfft=4096)
+                                            noverlap=nperseg // 2, nfft=2048)
         fm = f_s <= 45
         im = ax2.pcolormesh(t_s, f_s[fm], 10 * np.log10(Sxx[fm] + 1e-10),
                              shading="gouraud", cmap="inferno", vmin=-20)
@@ -786,13 +1036,42 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
         add_event_markers(ax2, events_oc, stim_blocks, close_epochs, shade_close=False, text_labels=True)
         plt.colorbar(im, ax=ax2, label="dB")
         plt.tight_layout()
-        _save_or_show(fig, f"{name}_spectrogram_ch{i+1}.png")
+        _save_or_show(fig, f"{name}_spectrogram_ch{i+1:02d}.png")
 
-    # ─── 4. Alpha envelope ───
-    fig, axes = plt.subplots(11, 1, figsize=(17, 24), sharex=True)
-    fig.suptitle(f"Alpha Envelope (8–13 Hz) — {name}", fontsize=14, fontweight="bold", y=1.0)
+    # ─── 4. Band decomposition — per channel ───
+    for i in range(n_ch):
+        fig, axs = plt.subplots(len(BANDS) + 1, 1, figsize=(16, 10), sharex=True,
+                                gridspec_kw={"height_ratios": [2] + [1] * len(BANDS)})
+        fig.suptitle(f"Band Decomposition — {name} — {ch_labels[i]}",
+                     fontsize=12, fontweight="bold")
+        cleaned = notch_filter(eeg[i])
+        ds_b = 20
+        bp_full = bandpass_filter(cleaned, 1, 45)
+        axs[0].plot(t[::ds_b], bp_full[::ds_b], lw=0.3, color="#2c3e50")
+        axs[0].set_title("Broadband (1–45 Hz)", fontsize=10)
+        axs[0].set_ylabel("µV", fontsize=8)
+        for j, (bname, (lo, hi)) in enumerate(BANDS.items()):
+            ax = axs[j + 1]
+            bpd = bandpass_filter(cleaned, lo, hi)
+            ax.plot(t[::ds_b], bpd[::ds_b], lw=0.4, color=BAND_COLORS[bname])
+            ax.set_title(f"{bname} ({lo}–{hi} Hz)", fontsize=10, color=BAND_COLORS[bname])
+            ax.set_ylabel("µV", fontsize=8)
+        for ax in axs:
+            ax.set_xlim(0, t[-1])
+            ax.tick_params(labelsize=7)
+            add_event_markers(ax, events_oc, stim_blocks, close_epochs)
+        axs[-1].set_xlabel("Time (s)")
+        plt.tight_layout()
+        _save_or_show(fig, f"{name}_band_decomp_ch{i+1:02d}.png")
+
+    # ─── 5. Alpha envelope with events ───
+    fig, axes = plt.subplots(n_ch, 1, figsize=(17, max(12, n_ch * 2.2)), sharex=True)
+    if n_ch == 1:
+        axes = [axes]
+    fig.suptitle(f"Alpha Envelope (8–13 Hz) — {name} ({cfg.name})",
+                 fontsize=14, fontweight="bold", y=1.0)
     ds_e = 50
-    for i in range(N_CHANNELS):
+    for i in range(n_ch):
         ax = axes[i]
         env = alpha_envelopes[i]
         ax.plot(t[::ds_e], env[::ds_e], lw=1, color="#e74c3c")
@@ -806,68 +1085,212 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
     plt.tight_layout()
     _save_or_show(fig, f"{name}_alpha_envelope.png")
 
-    # ─── 5. Eyes open vs closed PSD ───
+    # ─── 6. Eyes open vs closed (absolute + reactivity) ───
     if open_epochs and close_epochs:
-        fig, axes = plt.subplots(6, 2, figsize=(16, 20))
-        fig.suptitle(f"Eyes Open vs Closed — {name}", fontsize=14, fontweight="bold", y=1.0)
-        # First pass: compute all PSDs and find global min/max for shared y-scale
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
+        fig.suptitle(f"Alpha Reactivity — {name} ({cfg.name})",
+                     fontsize=13, fontweight="bold")
+        x = np.arange(n_ch)
+        w = 0.35
+        ax1.bar(x - w / 2, results["alpha_open"], w, color="#27ae60",
+                label="Open", edgecolor="k", lw=0.5)
+        ax1.bar(x + w / 2, results["alpha_closed"], w, color="#3498db",
+                label="Closed", edgecolor="k", lw=0.5)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(cfg.short_labels, fontsize=9)
+        ax1.set_ylabel("Alpha Power (µV²/Hz)")
+        ax1.set_title("Absolute")
+        ax1.legend()
+        ax1.set_yscale("log")
+
+        ax2.bar(x, results["alpha_reactivity"],
+                color=[ch_color(i, cfg) for i in range(n_ch)],
+                edgecolor="k", lw=0.5)
+        ax2.axhline(1, color="gray", lw=1, ls="--")
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(cfg.short_labels, fontsize=9)
+        ax2.set_ylabel("Closed / Open")
+        ax2.set_title("Reactivity (>1 = Berger effect)")
+        ax2.legend(handles=ELEC_LEGEND, fontsize=7, loc="upper right")
+
+        plt.tight_layout()
+        _save_or_show(fig, f"{name}_alpha_reactivity.png")
+
+    # ─── 7. Eyes open vs closed PSD (shared scale) ───
+    if open_epochs and close_epochs:
+        nrows_oc = (n_ch + 1) // 2
+        fig, axes = plt.subplots(nrows_oc, 2, figsize=(16, nrows_oc * 3.3))
+        fig.suptitle(f"Eyes Open vs Closed — {name} ({cfg.name})",
+                     fontsize=14, fontweight="bold", y=1.0)
         psd_data = []
         global_max = 0
         global_min = np.inf
-        for i in range(N_CHANNELS):
+        for i in range(n_ch):
             cleaned = notch_filter(eeg[i])
             od = np.concatenate([cleaned[ep["start"]:ep["end"]] for ep in open_epochs])
             cd = np.concatenate([cleaned[ep["start"]:ep["end"]] for ep in close_epochs])
             f_o, pxx_o = signal.welch(od, fs=FS, nperseg=4096)
             f_c, pxx_c = signal.welch(cd, fs=FS, nperseg=4096)
-            mask = (f_o >= 1) & (f_o <= 30)
-            psd_data.append((f_o, pxx_o, f_c, pxx_c, mask))
-            vals = np.concatenate([pxx_o[mask], pxx_c[mask]])
+            fmask = (f_o >= 1) & (f_o <= 30)
+            psd_data.append((f_o, pxx_o, f_c, pxx_c, fmask))
+            vals = np.concatenate([pxx_o[fmask], pxx_c[fmask]])
             global_max = max(global_max, vals.max())
             global_min = min(global_min, vals[vals > 0].min())
-        # Second pass: plot with shared log y-scale
-        for i in range(N_CHANNELS):
+        for i in range(n_ch):
             ax = axes.flatten()[i]
-            f_o, pxx_o, f_c, pxx_c, mask = psd_data[i]
-            ax.semilogy(f_o[mask], pxx_o[mask], lw=1.5, color="#27ae60", label="Open")
-            ax.semilogy(f_c[mask], pxx_c[mask], lw=1.5, color="#3498db", label="Closed")
+            f_o, pxx_o, f_c, pxx_c, fmask = psd_data[i]
+            ax.semilogy(f_o[fmask], pxx_o[fmask], lw=1.5, color="#27ae60", label="Open")
+            ax.semilogy(f_c[fmask], pxx_c[fmask], lw=1.5, color="#3498db", label="Closed")
             ax.set_ylim(global_min * 0.5, global_max * 2)
-            ax.set_title(CH_LABELS[i], fontsize=9, fontweight="bold")
+            ax.set_title(ch_labels[i], fontsize=9, fontweight="bold")
             ax.set_ylabel("µV²/Hz", fontsize=8)
             ax.legend(fontsize=7); ax.tick_params(labelsize=7)
-        axes.flatten()[11].set_visible(False)
+        for j in range(n_ch, len(axes.flatten())):
+            axes.flatten()[j].set_visible(False)
         plt.tight_layout()
         _save_or_show(fig, f"{name}_open_vs_closed.png")
 
-    # ─── 6. VEP ───
+    # ─── 8. Visual evoked potential (comparison panels) ───
     if subject["avg_data"] is not None:
-        fig, axes = plt.subplots(6, 2, figsize=(16, 18))
-        fig.suptitle(f"VEP (n={subject['avg_n_segments'] or '?'}) — {name}",
-                     fontsize=14, fontweight="bold", y=1.0)
         avg_t = subject["avg_t"]
         avg_data = subject["avg_data"]
-        for i in range(N_CHANNELS):
-            ax = axes.flatten()[i]
-            ax.plot(avg_t, avg_data[i], lw=1.5, color=ch_color(i))
-            ax.axvline(0, color="red", lw=1, ls="--", alpha=0.7)
-            ax.axhline(0, color="gray", lw=0.5)
-            ax.set_title(CH_LABELS[i], fontsize=9, fontweight="bold")
-            ax.set_xlim(-100, 400); ax.tick_params(labelsize=7)
-        axes.flatten()[11].set_visible(False)
+
+        if cfg.name == "Felt TCRE":
+            fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+            fig.suptitle(
+                f"VEP Comparison — {name} (n={subject['avg_n_segments'] or '?'})",
+                fontsize=13, fontweight="bold",
+            )
+            ax = axes[0]
+            for idx in cfg.idx_teeg:
+                ax.plot(avg_t, avg_data[idx], lw=1.2, alpha=0.7, label=f"Ch{idx+1}")
+            ax.axvline(0, color="red", lw=1, ls="--", alpha=0.5)
+            ax.axhline(0, color="gray", lw=0.3)
+            ax.set_title("Felt TCRE tEEG (Laplacian)")
+            ax.set_xlabel("ms"); ax.set_ylabel("µV")
+            ax.legend(fontsize=8); ax.set_xlim(-100, 400)
+
+            ax = axes[1]
+            ax.plot(avg_t, avg_data[9], lw=2, color="#2ecc71", label="Ch10 Paste tEEG")
+            ax.plot(avg_t, avg_data[10], lw=2, color="#e74c3c", label="Ch11 Disc")
+            ax.plot(avg_t, avg_data[8], lw=1.5, color="#9b59b6", ls="--", label="Ch9 Paste eEEG")
+            ax.axvline(0, color="red", lw=1, ls="--", alpha=0.5)
+            ax.axhline(0, color="gray", lw=0.3)
+            ax.set_title("Paste tEEG vs Disc"); ax.set_xlabel("ms")
+            ax.legend(fontsize=8); ax.set_xlim(-100, 400)
+
+            ax = axes[2]
+            ax.plot(avg_t, np.mean(avg_data[cfg.idx_teeg], axis=0), lw=2, color="#3498db",
+                    label="Avg Felt tEEG")
+            ax.plot(avg_t, avg_data[9], lw=2, color="#2ecc71", label="Paste tEEG")
+            ax.plot(avg_t, avg_data[10], lw=2, color="#e74c3c", label="Disc")
+            ax.axvline(0, color="red", lw=1, ls="--", alpha=0.5)
+            ax.axhline(0, color="gray", lw=0.3)
+            ax.set_title("Grand Average by Type"); ax.set_xlabel("ms")
+            ax.legend(fontsize=8); ax.set_xlim(-100, 400)
+            plt.tight_layout()
+            _save_or_show(fig, f"{name}_vep_comparison.png")
+        else:
+            fig, axes_vep = plt.subplots(1, 2, figsize=(14, 5))
+            fig.suptitle(
+                f"VEP Comparison — {name} ({cfg.name}, n={subject['avg_n_segments'] or '?'})",
+                fontsize=13, fontweight="bold",
+            )
+            ax = axes_vep[0]
+            for idx in cfg.idx_teeg:
+                ax.plot(avg_t, avg_data[idx], lw=1.2, alpha=0.7,
+                        label=ch_labels[idx])
+            ax.axvline(0, color="red", lw=1, ls="--", alpha=0.5)
+            ax.axhline(0, color="gray", lw=0.3)
+            ax.set_title(f"{cfg.name} tEEG"); ax.set_xlabel("ms"); ax.set_ylabel("µV")
+            ax.legend(fontsize=7); ax.set_xlim(-100, 400)
+
+            ax = axes_vep[1]
+            if cfg.idx_paste_teeg:
+                ax.plot(avg_t, avg_data[cfg.idx_paste_teeg[0]], lw=2,
+                        color="#2ecc71", label="Paste tEEG")
+            if cfg.idx_disc:
+                ax.plot(avg_t, avg_data[cfg.idx_disc[0]], lw=2,
+                        color="#e74c3c", label="Disc")
+            ax.axvline(0, color="red", lw=1, ls="--", alpha=0.5)
+            ax.axhline(0, color="gray", lw=0.3)
+            ax.set_title("Paste tEEG vs Disc"); ax.set_xlabel("ms")
+            ax.legend(fontsize=8); ax.set_xlim(-100, 400)
+            plt.tight_layout()
+            _save_or_show(fig, f"{name}_vep_comparison.png")
+
+    # ─── 9. Disc correlation ───
+    disc_ref_label = f"Ch{cfg.idx_disc[0]+1} (Disc)" if cfg.idx_disc else "Disc"
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.bar(range(n_ch), results["disc_correlation"],
+           color=[ch_color(i, cfg) for i in range(n_ch)],
+           edgecolor="k", lw=0.5)
+    ax.set_xticks(range(n_ch))
+    ax.set_xticklabels(cfg.short_labels)
+    ax.set_ylabel("Pearson r")
+    ax.set_ylim(0, 1.05)
+    ax.set_title(f"Alpha Envelope Correlation with {disc_ref_label} — {name}",
+                 fontsize=13, fontweight="bold")
+    for i, r in enumerate(results["disc_correlation"]):
+        if not np.isnan(r):
+            ax.text(i, r + 0.02, f"{r:.3f}", ha="center", fontsize=8, fontweight="bold")
+    ax.legend(handles=ELEC_LEGEND, fontsize=7, loc="upper left")
+    plt.tight_layout()
+    _save_or_show(fig, f"{name}_disc_correlation.png")
+
+    # ─── 10. ADC clipping report ───
+    clip_frac = results.get("adc_clip_fraction", None)
+    clip_max_run = results.get("adc_clip_max_run_samples", None)
+    if clip_frac is not None and clip_max_run is not None:
+        clip_pct = 100.0 * np.asarray(clip_frac, dtype=float)
+        clip_run_s = np.asarray(clip_max_run, dtype=float) / FS
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 4))
+        fig.suptitle(f"ADC Clipping Report — {name} ({cfg.name})",
+                     fontsize=13, fontweight="bold")
+        x = np.arange(n_ch)
+        colors_clip = [ch_color(i, cfg) for i in range(n_ch)]
+
+        ax1.bar(x, clip_pct, color=colors_clip, edgecolor="k", lw=0.5)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(cfg.short_labels, fontsize=9)
+        ax1.set_ylabel("% samples at/near ADC limit")
+        ax1.set_title(f"Clipped samples (threshold ≈ {results.get('adc_clip_threshold_uv', ADC_CLIP_UV):.1f} µV)")
+        ax1.set_ylim(0, max(0.5, float(np.nanmax(clip_pct)) * 1.2))
+
+        ax2.bar(x, clip_run_s, color=colors_clip, edgecolor="k", lw=0.5)
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(cfg.short_labels, fontsize=9)
+        ax2.set_ylabel("Longest clipped run (s)")
+        ax2.set_title("Worst contiguous saturation")
+        ax2.set_ylim(0, max(0.05, float(np.nanmax(clip_run_s)) * 1.2))
+
+        ax2.legend(handles=ELEC_LEGEND, fontsize=7, loc="upper right")
         plt.tight_layout()
-        _save_or_show(fig, f"{name}_vep.png")
+        _save_or_show(fig, f"{name}_adc_clipping.png")
 
-    # ─── 7. Spectrogram SSIM comparison (tEEG vs eEEG per TCRE) ───
+        if np.any(clip_pct > 0):
+            bad = np.where(clip_pct > 0)[0]
+            worst = int(bad[np.argmax(clip_pct[bad])]) if bad.size else None
+            if worst is not None:
+                print(
+                    f"WARNING: ADC clipping detected in {bad.size}/{n_ch} channels. "
+                    f"Worst: {ch_labels[worst]} ({clip_pct[worst]:.3f}% samples clipped, "
+                    f"max run {clip_run_s[worst]:.3f}s)."
+                )
+
+    # ─── 11. Spectrogram SSIM comparison (tEEG vs eEEG per TCRE) ───
     ssim_vals = results.get("ssim_values", [])
-    ssim_pairs = results.get("ssim_spectrogram_pairs", [])
+    ssim_pairs_data = results.get("ssim_spectrogram_pairs", [])
     ssim_labels = results.get("ssim_pair_labels", [])
+    tcre_pairs = cfg.tcre_pairs
 
-    if ssim_pairs:
-        for pi, (Sxx_t_db, Sxx_e_db, f_crop, t_crop) in enumerate(ssim_pairs):
-            teeg_idx, eeeg_idx, pair_label = TCRE_PAIRS[pi]
+    if ssim_pairs_data:
+        for pi, (Sxx_t_db, Sxx_e_db, f_crop, t_crop) in enumerate(ssim_pairs_data):
+            teeg_idx, eeeg_idx, pair_label = tcre_pairs[pi]
             score = ssim_vals[pi]
 
-            fig, axes = plt.subplots(1, 3, figsize=(20, 5))
+            fig, axes_ssim = plt.subplots(1, 3, figsize=(20, 5))
             fig.suptitle(
                 f"Spectrogram Comparison — {name} — {pair_label}  "
                 f"(SSIM = {score:.3f})",
@@ -877,59 +1300,59 @@ def plot_subject_full(subject, results, save_dir=None, show=True):
             vmin = min(Sxx_t_db.min(), Sxx_e_db.min())
             vmax = max(Sxx_t_db.max(), Sxx_e_db.max())
 
-            im0 = axes[0].pcolormesh(t_crop, f_crop, Sxx_t_db,
-                                      shading="gouraud", cmap="inferno",
-                                      vmin=vmin, vmax=vmax)
-            axes[0].set_title(f"Ch{teeg_idx+1} — tEEG (Laplacian)", fontsize=10)
-            axes[0].set_ylabel("Hz"); axes[0].set_ylim(1, 45)
-            axes[0].axhline(8, color="cyan", lw=0.6, ls="--", alpha=0.5)
-            axes[0].axhline(13, color="cyan", lw=0.6, ls="--", alpha=0.5)
+            im0 = axes_ssim[0].pcolormesh(t_crop, f_crop, Sxx_t_db,
+                                           shading="gouraud", cmap="inferno",
+                                           vmin=vmin, vmax=vmax)
+            axes_ssim[0].set_title(f"Ch{teeg_idx+1} — tEEG (Laplacian)", fontsize=10)
+            axes_ssim[0].set_ylabel("Hz"); axes_ssim[0].set_ylim(1, 45)
+            axes_ssim[0].axhline(8, color="cyan", lw=0.6, ls="--", alpha=0.5)
+            axes_ssim[0].axhline(13, color="cyan", lw=0.6, ls="--", alpha=0.5)
 
-            im1 = axes[1].pcolormesh(t_crop, f_crop, Sxx_e_db,
-                                      shading="gouraud", cmap="inferno",
-                                      vmin=vmin, vmax=vmax)
-            axes[1].set_title(f"Ch{eeeg_idx+1} — eEEG (Conv)", fontsize=10)
-            axes[1].set_ylabel("Hz"); axes[1].set_ylim(1, 45)
-            axes[1].axhline(8, color="cyan", lw=0.6, ls="--", alpha=0.5)
-            axes[1].axhline(13, color="cyan", lw=0.6, ls="--", alpha=0.5)
+            im1 = axes_ssim[1].pcolormesh(t_crop, f_crop, Sxx_e_db,
+                                           shading="gouraud", cmap="inferno",
+                                           vmin=vmin, vmax=vmax)
+            axes_ssim[1].set_title(f"Ch{eeeg_idx+1} — eEEG (Conv)", fontsize=10)
+            axes_ssim[1].set_ylabel("Hz"); axes_ssim[1].set_ylim(1, 45)
+            axes_ssim[1].axhline(8, color="cyan", lw=0.6, ls="--", alpha=0.5)
+            axes_ssim[1].axhline(13, color="cyan", lw=0.6, ls="--", alpha=0.5)
 
-            # Difference map
             diff = Sxx_t_db - Sxx_e_db
             d_abs = max(abs(diff.min()), abs(diff.max()), 1)
-            im2 = axes[2].pcolormesh(t_crop, f_crop, diff,
-                                      shading="gouraud", cmap="RdBu_r",
-                                      vmin=-d_abs, vmax=d_abs)
-            axes[2].set_title("Difference (tEEG − eEEG)", fontsize=10)
-            axes[2].set_ylabel("Hz"); axes[2].set_ylim(1, 45)
-            axes[2].axhline(8, color="black", lw=0.6, ls="--", alpha=0.5)
-            axes[2].axhline(13, color="black", lw=0.6, ls="--", alpha=0.5)
+            im2 = axes_ssim[2].pcolormesh(t_crop, f_crop, diff,
+                                           shading="gouraud", cmap="RdBu_r",
+                                           vmin=-d_abs, vmax=d_abs)
+            axes_ssim[2].set_title("Difference (tEEG − eEEG)", fontsize=10)
+            axes_ssim[2].set_ylabel("Hz"); axes_ssim[2].set_ylim(1, 45)
+            axes_ssim[2].axhline(8, color="black", lw=0.6, ls="--", alpha=0.5)
+            axes_ssim[2].axhline(13, color="black", lw=0.6, ls="--", alpha=0.5)
 
-            for ax in axes:
+            for ax in axes_ssim:
                 ax.set_xlabel("Time (s)")
-            plt.colorbar(im0, ax=axes[0], label="dB", shrink=0.8)
-            plt.colorbar(im1, ax=axes[1], label="dB", shrink=0.8)
-            plt.colorbar(im2, ax=axes[2], label="ΔdB", shrink=0.8)
+            plt.colorbar(im0, ax=axes_ssim[0], label="dB", shrink=0.8)
+            plt.colorbar(im1, ax=axes_ssim[1], label="dB", shrink=0.8)
+            plt.colorbar(im2, ax=axes_ssim[2], label="ΔdB", shrink=0.8)
             plt.tight_layout()
             _save_or_show(fig, f"{name}_ssim_pair{pi+1}_{pair_label.replace(' ', '_')}.png")
 
-        # SSIM summary bar chart
         fig, ax = plt.subplots(figsize=(8, 4))
-        colors_ssim = ["#3498db"] * 4 + ["#2ecc71"]  # Felt=blue, Paste=green
-        ax.bar(range(len(ssim_vals)), ssim_vals, color=colors_ssim,
+        n_pairs = len(ssim_vals)
+        colors_ssim = [("#3498db" if "Paste" not in lbl else "#2ecc71")
+                       for lbl in ssim_labels]
+        ax.bar(range(n_pairs), ssim_vals, color=colors_ssim,
                edgecolor="k", lw=0.5)
-        ax.set_xticks(range(len(ssim_vals)))
+        ax.set_xticks(range(n_pairs))
         ax.set_xticklabels(ssim_labels, fontsize=9, rotation=15)
         ax.set_ylabel("SSIM")
         ax.set_title(f"Spectrogram SSIM (tEEG vs eEEG) — {name}",
                      fontsize=12, fontweight="bold")
         ax.set_ylim(0, 1)
         ax.axhline(0.8, color="gray", lw=0.8, ls="--", alpha=0.5)
-        ax.text(len(ssim_vals) - 0.5, 0.81, "high similarity", fontsize=7,
+        ax.text(n_pairs - 0.5, 0.81, "high similarity", fontsize=7,
                 color="gray", ha="right")
         for j, v in enumerate(ssim_vals):
             ax.text(j, v + 0.02, f"{v:.3f}", ha="center", fontsize=9, fontweight="bold")
         plt.tight_layout()
         _save_or_show(fig, f"{name}_ssim_summary.png")
 
-    # ─── 8. Summary dashboard ───
+    # ─── 12. Summary dashboard ───
     plot_subject_summary(subject, results, save_dir=save_dir, show=show)

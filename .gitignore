@@ -1,0 +1,46 @@
+# ─── Data files (large binary EEG recordings) ───
+data/
+Gel TCRE/
+
+# ─── Generated output (figures, reports) ───
+output/
+Resutls Individual/
+
+# ─── Python environment ───
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ─── Large binary file types ───
+*.eeg
+*.avg
+*.mat
+*.npy
+*.npz
+
+# ─── LaTeX build artifacts ───
+*.aux
+*.fls
+*.fdb_latexmk
+*.log
+*.out
+*.synctex.gz
+my_report/*.pdf
+
+# ─── PDFs (large reference documents) ───
+*.pdf
+
+# ─── Jupyter ───
+.ipynb_checkpoints/
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
+
+# ─── IDE ───
+.vscode/
+.idea/
+*.swp
+*.swo

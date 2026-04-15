@@ -1,4 +1,5 @@
 numpy
 scipy
 matplotlib
+scikit-image
 specparam==2.0.0rc6
