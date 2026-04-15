@@ -120,40 +120,160 @@ def print_qc_report(subjects_results, label=""):
     print(SEP + "\n")
 
 
+def _passes_signal_qc(subj, res, min_alpha_snr_db, min_alpha_reactivity,
+                      min_vep_p2p_uv, label=""):
+    """
+    Apply signal-quality gates to a loaded subject.
+
+    Gates are evaluated on the tEEG channels only (averaged across channels).
+    Returns (passed: bool, reason: str).
+
+    Thresholds:
+        min_alpha_snr_db      - mean tEEG alpha SNR must be ≥ this (dB)
+        min_alpha_reactivity  - mean tEEG alpha reactivity must be ≥ this
+        min_vep_p2p_uv        - max tEEG VEP peak-to-peak must be ≥ this (µV);
+                                set to 0 to skip this gate.
+    """
+    cfg = subj.get("config", FELT_TCRE_CONFIG)
+    teeg_idxs = cfg.idx_teeg
+
+    reasons = []
+
+    # --- Alpha SNR gate ---
+    if min_alpha_snr_db is not None:
+        snr_vals = [res["alpha_snr"][i] for i in teeg_idxs
+                    if not np.isnan(res["alpha_snr"][i])]
+        if snr_vals:
+            mean_snr = np.mean(snr_vals)
+            if mean_snr < min_alpha_snr_db:
+                reasons.append(
+                    f"tEEG Alpha SNR {mean_snr:.1f} dB < {min_alpha_snr_db} dB")
+
+    # --- Alpha reactivity gate ---
+    if min_alpha_reactivity is not None:
+        react_vals = [res["alpha_reactivity"][i] for i in teeg_idxs
+                      if not np.isnan(res["alpha_reactivity"][i])]
+        if react_vals:
+            mean_react = np.mean(react_vals)
+            if mean_react < min_alpha_reactivity:
+                reasons.append(
+                    f"tEEG Reactivity {mean_react:.2f} < {min_alpha_reactivity}")
+
+    # --- VEP gate (optional) ---
+    if min_vep_p2p_uv and min_vep_p2p_uv > 0:
+        vep_vals = [res["vep_p2p"][i] for i in teeg_idxs
+                    if not np.isnan(res["vep_p2p"][i])]
+        if vep_vals:
+            max_vep = np.max(vep_vals)
+            if max_vep < min_vep_p2p_uv:
+                reasons.append(
+                    f"max tEEG VEP {max_vep:.1f} µV < {min_vep_p2p_uv} µV")
+
+    if reasons:
+        return False, "; ".join(reasons)
+    return True, "OK"
+
+
 def load_all_subjects(felt_dir, gel_dir, felt_names=None,
                       exclude_felt=None, exclude_gel=None,
                       min_open_epochs=2, min_close_epochs=2,
+                      min_alpha_snr_db=0.0,
+                      min_alpha_reactivity=1.2,
+                      min_vep_p2p_uv=0.0,
                       verbose=True):
     """
-    Load Felt and Gel subjects, returning structured dicts.
+    Load Felt and Gel subjects with automatic quality gates.
+
+    Subjects are included only if they pass ALL of the following:
+      1. Not in the manual exclusion list.
+      2. Have ≥ min_open_epochs and ≥ min_close_epochs.
+      3. Unknown channel layout raises ValueError → skipped automatically.
+      4. Mean tEEG Alpha SNR  ≥ min_alpha_snr_db  (default 0 dB).
+      5. Mean tEEG Reactivity ≥ min_alpha_reactivity (default 1.2).
+      6. Max  tEEG VEP p2p    ≥ min_vep_p2p_uv     (default 0 = gate off).
+
+    Gates 4–6 are objective, data-driven, and applied identically to both
+    Felt and Gel datasets — they are reportable as pre-registration criteria.
+
+    To disable a signal-quality gate, set its threshold to None.
 
     Args:
         felt_dir: path to data/ folder containing Felt TCRE recordings
         gel_dir: path to "Gel TCRE" folder with date-based subfolders
         felt_names: list of subject names (or substrings) to include from
                     felt_dir. None = include all discovered subjects.
-        exclude_felt: list of subject names (or substrings) to explicitly
-                      exclude from felt_dir (e.g. pilot/test recordings).
-        exclude_gel: list of subject basenames (or substrings) to exclude
-                     from gel recordings.
-        min_open_epochs: subjects with fewer eyes-open epochs are skipped.
-        min_close_epochs: subjects with fewer eyes-closed epochs are skipped.
-        verbose: print progress
+        exclude_felt: list of subject name substrings to manually exclude.
+        exclude_gel: list of Gel subject basename substrings to exclude.
+        min_open_epochs: hard epoch-count floor for eyes-open.
+        min_close_epochs: hard epoch-count floor for eyes-closed.
+        min_alpha_snr_db: minimum mean tEEG alpha SNR in dB (None to disable).
+        min_alpha_reactivity: minimum mean tEEG closed/open ratio (None to disable).
+        min_vep_p2p_uv: minimum max tEEG VEP peak-to-peak in µV (0 or None to disable).
+        verbose: print per-subject progress and exclusion reason.
 
     Returns:
         felt_subjects: list of (subject_dict, results_dict) tuples
-        gel_subjects: list of (subject_dict, results_dict) tuples
+        gel_subjects:  list of (subject_dict, results_dict) tuples
     """
     felt_subjects = []
-    gel_subjects = []
-    exclude_felt = exclude_felt or []
-    exclude_gel  = exclude_gel  or []
+    gel_subjects  = []
+    exclude_felt  = exclude_felt or []
+    exclude_gel   = exclude_gel  or []
+
+    # Counters for the exclusion summary table
+    _counts = {"felt": {"loaded": 0, "manual": 0, "epoch": 0,
+                        "signal": 0, "error": 0, "config": 0},
+               "gel":  {"loaded": 0, "manual": 0, "epoch": 0,
+                        "signal": 0, "error": 0, "config": 0}}
 
     def _is_excluded(name, basename, exclusion_list):
-        for ex in exclusion_list:
-            if ex.lower() in name.lower() or ex.lower() in basename.lower():
-                return True
-        return False
+        return any(ex.lower() in name.lower() or ex.lower() in basename.lower()
+                   for ex in exclusion_list)
+
+    def _try_load(si, data_dir, config, group_key, label):
+        if _is_excluded(si["name"], si["basename"], exclude_felt if group_key == "felt" else exclude_gel):
+            if verbose:
+                print(f"  EXCLUDED (manual)          {si['name']}")
+            _counts[group_key]["manual"] += 1
+            return None, None
+
+        if verbose:
+            print(f"  Loading {label}: {si['name']} ...")
+        try:
+            subj = load_subject(data_dir, subject_info=si, config=config)
+        except ValueError as e:
+            print(f"  SKIP (config error)        {si['name']}: {e}")
+            _counts[group_key]["config"] += 1
+            return None, None
+        except Exception as e:
+            print(f"  SKIP (load error)          {si['name']}: {e}")
+            _counts[group_key]["error"] += 1
+            return None, None
+
+        n_open  = len(subj["open_epochs"])
+        n_close = len(subj["close_epochs"])
+        if n_open < min_open_epochs or n_close < min_close_epochs:
+            print(f"  SKIP (too few epochs)      {si['name']}: "
+                  f"{n_open} open / {n_close} close "
+                  f"(need ≥{min_open_epochs}/{min_close_epochs})")
+            _counts[group_key]["epoch"] += 1
+            return None, None
+
+        res = analyze_subject(subj)
+
+        passed, reason = _passes_signal_qc(
+            subj, res,
+            min_alpha_snr_db=min_alpha_snr_db,
+            min_alpha_reactivity=min_alpha_reactivity,
+            min_vep_p2p_uv=min_vep_p2p_uv,
+        )
+        if not passed:
+            print(f"  SKIP (signal QC)           {si['name']}: {reason}")
+            _counts[group_key]["signal"] += 1
+            return None, None
+
+        _counts[group_key]["loaded"] += 1
+        return subj, res
 
     # --- Felt TCRE ---
     felt_discovered = discover_subjects(felt_dir)
@@ -163,51 +283,44 @@ def load_all_subjects(felt_dir, gel_dir, felt_names=None,
                            or any(n in s["basename"] for n in felt_names)]
 
     for si in felt_discovered:
-        if _is_excluded(si["name"], si["basename"], exclude_felt):
-            print(f"  EXCLUDED (manual) {si['name']}")
-            continue
-        if verbose:
-            print(f"  Loading Felt TCRE: {si['name']} ...")
-        try:
-            # config=None → auto-detect from .vhdr channel count.
-            # Unknown channel counts (e.g. 9-ch prototype recordings) will
-            # raise ValueError here and be skipped cleanly.
-            subj = load_subject(felt_dir, subject_info=si, config=None)
-            n_open  = len(subj["open_epochs"])
-            n_close = len(subj["close_epochs"])
-            if n_open < min_open_epochs or n_close < min_close_epochs:
-                print(f"  SKIP {si['name']}: only {n_open} open / {n_close} close epochs "
-                      f"(need ≥{min_open_epochs}/{min_close_epochs})")
-                continue
-            res = analyze_subject(subj)
+        subj, res = _try_load(si, felt_dir, config=None,
+                              group_key="felt", label="Felt TCRE")
+        if subj is not None:
             felt_subjects.append((subj, res))
-        except Exception as e:
-            print(f"  SKIP {si['name']}: {e}")
 
     # --- Gel TCRE ---
     gel_discovered = discover_subjects(gel_dir, recursive=True,
                                        standard_protocol_only=True)
     for si in gel_discovered:
-        if _is_excluded(si["name"], si["basename"], exclude_gel):
-            print(f"  EXCLUDED (manual) {si['basename']}")
-            continue
-        if verbose:
-            print(f"  Loading Gel TCRE: {si['name']} ({si['basename']}) ...")
-        try:
-            subj = load_subject(gel_dir, subject_info=si, config=GEL_TCRE_CONFIG)
-            n_open  = len(subj["open_epochs"])
-            n_close = len(subj["close_epochs"])
-            if n_open < min_open_epochs or n_close < min_close_epochs:
-                print(f"  SKIP {si['basename']}: only {n_open} open / {n_close} close epochs "
-                      f"(need ≥{min_open_epochs}/{min_close_epochs})")
-                continue
-            res = analyze_subject(subj)
+        subj, res = _try_load(si, gel_dir, config=GEL_TCRE_CONFIG,
+                              group_key="gel", label="Gel TCRE ")
+        if subj is not None:
             gel_subjects.append((subj, res))
-        except Exception as e:
-            print(f"  SKIP {si['basename']}: {e}")
 
     if verbose:
-        print(f"\nLoaded {len(felt_subjects)} Felt, {len(gel_subjects)} Gel subjects.")
+        print(f"\n{'─'*60}")
+        print(f"  INCLUSION SUMMARY")
+        print(f"{'─'*60}")
+        for grp in ("felt", "gel"):
+            c = _counts[grp]
+            total = sum(c.values())
+            print(f"  {grp.upper()} TCRE:")
+            print(f"    Included  : {c['loaded']}")
+            print(f"    Excluded (manual)    : {c['manual']}")
+            print(f"    Excluded (too few epochs): {c['epoch']}")
+            print(f"    Excluded (signal QC) : {c['signal']}")
+            print(f"    Skipped  (config/unknown layout): {c['config']}")
+            print(f"    Skipped  (load error): {c['error']}")
+        print(f"{'─'*60}")
+        print(f"  Signal QC thresholds applied:")
+        print(f"    Alpha SNR  ≥ {min_alpha_snr_db} dB"
+              if min_alpha_snr_db is not None else "    Alpha SNR  : gate disabled")
+        print(f"    Reactivity ≥ {min_alpha_reactivity}"
+              if min_alpha_reactivity is not None else "    Reactivity : gate disabled")
+        vep_str = (f"    VEP p2p    ≥ {min_vep_p2p_uv} µV"
+                   if min_vep_p2p_uv else "    VEP p2p    : gate disabled")
+        print(vep_str)
+        print(f"{'─'*60}\n")
 
     return felt_subjects, gel_subjects
 

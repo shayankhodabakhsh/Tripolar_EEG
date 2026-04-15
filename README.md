@@ -19,8 +19,8 @@ This project compares **three electrolyte/construction types** in a unified anal
 
 | Type | Electrolyte | Subjects | Channels |
 |------|-------------|----------|----------|
-| Felt TCRE | Saltwater-soaked felt pad | TU2, LS2 (long recordings) + others | 11 ch |
-| Gel TCRE | Conductive gel (new design with 3D housing) | 10 subjects (BA, MN, BN, EC, EP, MC, RS, MH, RK, AK) | 7 ch |
+| Felt TCRE | Saltwater-soaked felt pad | All loadable 11-ch subjects (Long + Short unless filtered) | 11 ch |
+| Gel TCRE | Conductive gel (new design with 3D housing) | Standard-protocol Gel subjects discovered recursively | 7 ch |
 | Paste TCRE | Conductive paste | Present in **both** recording setups (bridge electrode) | — |
 
 The **Paste TCRE** is recorded in both setups, acting as a bridge reference to validate
@@ -100,8 +100,19 @@ The defaults are pre-configured:
 ```python
 FELT_DATA_DIR = "../data"
 GEL_DATA_DIR  = "../Gel TCRE"
-FELT_SUBJECTS = ["TU2", "LS2"]   # long felt recordings
+
+# None => include all discovered Felt recordings
+FELT_SUBJECTS = None
+
+# manual exclusion lists (substring match)
+EXCLUDE_FELT = ["LuciTest"]   # add bad subjects here
+EXCLUDE_GEL  = []
 ```
+
+The loader also performs hard quality gates:
+- Skip subjects with unknown channel layout (e.g. 9-ch prototypes without a config)
+- Skip subjects with fewer than 2 eyes-open or 2 eyes-closed epochs
+- Print a QC report (duration, epoch counts, mean alpha SNR, clipping %)
 
 Figures are saved to `output/three_way_comparison/`.
 
@@ -226,15 +237,25 @@ aliases that still point to the Felt TCRE values — existing notebooks need no 
 ### `src/comparison_analysis.py` — 3-way comparison
 
 ```
-load_all_subjects(felt_dir, gel_dir, felt_names)
-    └── loads + analyzes both datasets in one call
+load_all_subjects(
+    felt_dir, gel_dir, felt_names,
+    exclude_felt, exclude_gel,
+    min_open_epochs, min_close_epochs
+)
+    └── loads + analyzes both datasets with automatic exclusions + QC gates
 
-extract_type_metrics(subjects_results)
+print_qc_report(subjects_results)
+    └── prints per-subject QC table (PASS/WARN/FAIL)
+
+extract_type_metrics(subjects_results, per_subject=True)
     └── aggregates by abstract type: FELT_TEEG, GEL_TEEG, PASTE_TEEG,
         FELT_EEEG, GEL_EEEG, PASTE_EEEG, DISC
+    └── default is per-subject averaging (statistically correct unit = subject)
 
-extract_psd_by_type(subjects_results)
-extract_open_closed_psd_by_type(subjects_results)
+extract_psd_by_type(subjects_results, normalize=True)
+extract_open_closed_psd_by_type(subjects_results, normalize=True)
+    └── PSDs are normalized to each channel's own broadband power (1–30 Hz)
+       so Felt/Gel are comparable despite Gel /187 amplitude scaling
 
 compare_electrode_types(felt_subjects, gel_subjects)
     └── Mann-Whitney U tests across all type pairs
@@ -259,10 +280,10 @@ Running `src/three_way_comparison.ipynb` produces these figures in
 
 | File | Contents |
 |------|----------|
-| `comparison_alpha_snr.png` | Bar chart: Alpha SNR (dB) by electrode type |
-| `comparison_alpha_reactivity.png` | Bar chart: Closed/Open ratio by electrode type |
-| `comparison_psd_teeg.png` | PSD overlay: tEEG channels only, 1–30 Hz |
-| `comparison_open_vs_closed_psd.png` | Side-by-side open/closed PSD per type |
+| `comparison_alpha_snr.png` | Bar chart: Alpha SNR (dB) by electrode type (n = subjects) |
+| `comparison_alpha_reactivity.png` | Bar chart: Closed/Open ratio by electrode type (n = subjects) |
+| `comparison_psd_teeg.png` | Normalized PSD overlay (tEEG + disc), 1–30 Hz |
+| `comparison_open_vs_closed_psd.png` | Normalized open vs closed PSD per type |
 | `comparison_paste_bridge.png` | Boxplots: Paste TCRE metrics across both setups |
 | `gel_individual/<basename>/` | Per-subject summary dashboards for Gel subjects |
 
@@ -296,6 +317,66 @@ Running `src/single_subject_analysis_v2.ipynb` produces figures in
 | **Disc Correlation** | Pearson r of alpha envelope vs disc channel | Tracks same neural events as gold standard |
 | **VEP Peak-to-Peak** | max − min of averaged evoked potential | Stimulus-locked response amplitude |
 | **Spectrogram SSIM** | Structural similarity between tEEG and eEEG spectrograms per TCRE pair | High SSIM = tEEG and eEEG capture similar time-frequency content |
+
+---
+
+## Interpreting The Current Figures
+
+Your comparison output contains **electrode classes**, not three separate Felt/Gel cohorts:
+
+- Felt tEEG / Felt eEEG
+- Gel tEEG / Gel eEEG
+- Paste tEEG / Paste eEEG (bridge in both setups)
+- Disc EEG (reference)
+
+So when you see multiple Felt/Gel bars, they are different **signal derivations** (tEEG vs eEEG), not duplicate groups.
+
+### Long Felt vs Short Felt
+
+- `FELT_SUBJECTS = None` means all discoverable Felt recordings are considered.
+- If both Long Felt and Short Felt are present in 11-channel format, both are included unless manually excluded.
+- 9-channel prototypes (e.g., Gab/LS1/TU) are currently skipped automatically because no 9-channel map is defined.
+
+If you want a pure Long-Felt analysis for publication, set:
+
+```python
+FELT_SUBJECTS = ["TU2", "LS2", "HS Long Felt TCRE"]
+```
+
+or explicitly exclude all short sessions via `EXCLUDE_FELT`.
+
+### What each figure is saying
+
+- `comparison_alpha_snr.png`: all classes show positive SNR (alpha is detectable); compare central tendency with caution because variance is high.
+- `comparison_alpha_reactivity.png`: Berger effect (>1) is present overall; some groups have large spread indicating subject/session heterogeneity.
+- `comparison_psd_teeg.png`: normalized PSD curves are now shape-comparable across Felt/Gel despite gain differences.
+- `comparison_open_vs_closed_psd.png`: closed-eye alpha bump (8–13 Hz) should exceed open-eye; this validates physiological behavior.
+- `comparison_paste_bridge.png`: Paste Felt vs Paste Gel similarity is the key cross-setup sanity check.
+
+---
+
+## Are These Results Publishable?
+
+Short answer: **potentially publishable as a pilot / methods-validation result**, but not yet as a definitive performance claim.
+
+Current strengths:
+- Unified pipeline and harmonized preprocessing
+- Cross-setup bridge electrode (Paste) for comparability checks
+- Per-subject statistics (correct unit of analysis)
+- QC/exclusion workflow documented and reproducible
+
+Current limitations to state explicitly:
+- Mixed Felt populations (Long + Short) unless filtered
+- Small and imbalanced sample sizes in some subsets
+- High variance / outliers in Gel and Paste reactivity metrics
+- Some sessions removed by quality filters (must report exclusion counts and reasons)
+
+Minimum checklist before submission:
+1. Lock a cohort definition (Long-only vs Long+Short) before final stats.
+2. Freeze exclusion rules and report them transparently.
+3. Re-run all figures/tables with final cohort.
+4. Include robustness/sensitivity analysis (with and without borderline subjects).
+5. Frame conclusions as exploratory if n remains limited.
 
 ---
 
