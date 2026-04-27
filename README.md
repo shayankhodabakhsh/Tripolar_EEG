@@ -43,6 +43,17 @@ cross-recording comparability.
 
 ---
 
+## Latest Implemented Updates (This Iteration)
+
+- **SSIM in group pipeline:** `extract_type_metrics(...)` now carries a per-subject, per-type SSIM value derived from each subject's `ssim_values` and TCRE pair map.
+- **SSIM in stats:** `compare_electrode_types(...)` now includes `ssim` in the same statistical table as alpha SNR and alpha reactivity.
+- **SSIM figure output:** `plot_three_way_comparison(...)` now writes `comparison_ssim.png` (boxplot + individual subject points, y-range 0-1).
+- **Cross-setup metric policy:** cross-setup inference is explicitly limited to scale-invariant endpoints (alpha SNR, alpha reactivity, SSIM).
+- **QC behavior now documented:** objective subject filtering is based on epoch count + signal quality gates before subjects enter comparison stats.
+- **Current local data note:** the pipeline only analyzes subjects physically present under the configured `FELT_DATA_DIR` / `GEL_DATA_DIR` paths.
+
+---
+
 ## Repository Structure
 
 ```
@@ -366,6 +377,7 @@ or explicitly exclude all short sessions via `EXCLUDE_FELT`.
 
 - `comparison_alpha_snr.png`: all classes show positive SNR (alpha is detectable); compare central tendency with caution because variance is high.
 - `comparison_alpha_reactivity.png`: Berger effect (>1) is present overall; some groups have large spread indicating subject/session heterogeneity.
+- `comparison_ssim.png`: summarizes tEEG-vs-eEEG spectrogram structural similarity by electrode class; this metric is dimensionless and directly comparable across setups.
 - `comparison_psd_teeg.png`: normalized PSD curves are now shape-comparable across Felt/Gel despite gain differences.
 - `comparison_open_vs_closed_psd.png`: closed-eye alpha bump (8–13 Hz) should exceed open-eye; this validates physiological behavior.
 - `comparison_paste_bridge.png`: Paste Felt vs Paste Gel similarity is the key cross-setup sanity check.
