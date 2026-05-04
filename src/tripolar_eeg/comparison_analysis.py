@@ -1111,10 +1111,16 @@ def plot_three_way_comparison(felt_subjects, gel_subjects, save_dir=None, show=T
             if bridge_key in comp["comparisons"]:
                 c = comp["comparisons"][bridge_key]
                 sig = "***" if c["p"] < 0.001 else "**" if c["p"] < 0.01 else "*" if c["p"] < 0.05 else "ns"
-                ax.text(1.5, ax.get_ylim()[1] * 0.95,
-                        f"p={c['p']:.3f} ({sig})\nd={c['d']:.2f}",
-                        ha="center", fontsize=9, fontweight="bold",
-                        bbox=dict(boxstyle="round", fc="white", alpha=0.8))
+                # Pad the y-range so the annotation sits in clear headroom
+                # below the subplot title rather than overlapping it.
+                lo, hi = ax.get_ylim()
+                ax.set_ylim(lo, hi + 0.18 * (hi - lo))
+                ax.text(0.98, 0.96,
+                        f"p={c['p']:.3f} ({sig}), d={c['d']:.2f}",
+                        transform=ax.transAxes, ha="right", va="top",
+                        fontsize=9, fontweight="bold",
+                        bbox=dict(boxstyle="round,pad=0.3",
+                                  fc="white", ec="0.5", alpha=0.9))
 
         plt.tight_layout()
         _save_or_show(fig, "comparison_paste_bridge.png")
