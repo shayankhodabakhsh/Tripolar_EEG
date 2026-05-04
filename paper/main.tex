@@ -376,17 +376,17 @@ We report only \emph{scale-invariant} endpoints in the main cross-construction c
   stabilising constants with $L$ the dynamic range. SSIM is dimensionless and bounded on $[0,1]$, hence directly cross-setup comparable.
 
 
-\item \textbf{Visual evoked potential (Felt setup only)}: peak latencies and amplitudes of the pre-averaged checkerboard response, reported for the two long-felt subjects whose .avg files are available in this study (LF02, LF03). For each canonical component $C\in\{\mathrm{N75},\mathrm{P100},\mathrm{N135}\}$ with search window $[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]$, the reported latency $\hat{t}_{C}$ is
+\item \textbf{Visual evoked potential (Felt setup only)}: peak latencies and amplitudes of the pre-averaged checkerboard response, reported for the two long-felt subjects whose .avg files are available in this study (LF02, LF03). For each canonical component $C\in\{\mathrm{N75},\mathrm{P100},\mathrm{N135}\}$ with search window $W_{C}=[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]$, the reported latency $\hat{t}_{C}$ is
   \begin{equation}
   \hat{t}_{C}
   \;=\;
   \begin{cases}
-  \displaystyle\arg\!\min_{t\in[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]}\bar{V}(t) & C\in\{\mathrm{N75},\mathrm{N135}\},\\[6pt]
-  \displaystyle\arg\!\max_{t\in[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]}\bar{V}(t) & C=\mathrm{P100},
+  \arg\min_{t\in W_{C}}\,\bar{V}(t) & C\in\{\mathrm{N75},\mathrm{N135}\},\\[2pt]
+  \arg\max_{t\in W_{C}}\,\bar{V}(t) & C=\mathrm{P100},
   \end{cases}
   \label{eq:peak}
   \end{equation}
-  with $\bar{V}(t)$ the channel-mean grand-average evoked response and search windows $[t_{\mathrm{N75,lo}},t_{\mathrm{N75,hi}}]=[50,95]$~ms, $[t_{\mathrm{P100,lo}},t_{\mathrm{P100,hi}}]=[90,140]$~ms, $[t_{\mathrm{N135,lo}},t_{\mathrm{N135,hi}}]=[125,180]$~ms (set in \texttt{scripts/build\_felt\_vep\_figure.py}). A latency that pins at the lower or upper window boundary is reported as ``n.r.'' (not resolved) rather than as a numerical peak.\\
+  with $\bar{V}(t)$ the channel-mean grand-average evoked response. Search windows: $W_{\mathrm{N75}}=[50,95]$, $W_{\mathrm{P100}}=[90,140]$, $W_{\mathrm{N135}}=[125,180]$~(ms; values set in the accompanying build script). A latency that pins at the lower or upper boundary of $W_{C}$ is reported as ``n.r.'' (not resolved) rather than as a numerical peak.\\
   VEPs from the gel cohort are excluded from cross-construction VEP statistics because the gel-era acquisition produced unreliable evoked responses under the harmonized pipeline; see Section~\ref{sec:vep_scope} for scope of this exclusion and Section~\ref{sec:gel_vep_sanity} for the qualitative documentation.
 \end{itemize}
 
