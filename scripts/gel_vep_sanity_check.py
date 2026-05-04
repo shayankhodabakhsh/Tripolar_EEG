@@ -40,8 +40,25 @@ def fir_bandpass(x, low, high, fs, numtaps=None):
 
 GEL_DIR = os.path.join(ROOT, "Gel TCRE", "10-20-2024")
 SUBJECT_BASENAME = "BA-1-10-20-2024"
+SUBJECT_KEY_CSV = os.path.join(ROOT, "data", "SUBJECT_KEY.csv")
 OUT_DIR = os.path.join(ROOT, "output", "gel_vep_sanity_check")
 OUT_FIG = os.path.join(OUT_DIR, "BA_unified_pipeline.png")
+
+
+def display_label_for(basename, key_csv=SUBJECT_KEY_CSV, fallback="Gel session"):
+    """Return the de-identified display ID for a raw subject basename.
+
+    Falls back to ``fallback`` if the basename is not in SUBJECT_KEY.csv —
+    figures must never burn in raw subject identifiers.
+    """
+    if not os.path.exists(key_csv):
+        return fallback
+    import csv
+    with open(key_csv) as f:
+        for row in csv.DictReader(f):
+            if row.get("raw_name") == basename or row.get("basename") == basename:
+                return row["display_id"]
+    return fallback
 
 PRE_S = 0.1
 POST_S = 0.5
@@ -175,8 +192,9 @@ def main():
         ax.set_ylabel("µV")
         ax.grid(alpha=0.25)
     axes[-1].set_xlabel("Time (ms) — 0 = checkerboard reversal")
+    display_id = display_label_for(SUBJECT_BASENAME)
     fig.suptitle(
-        f"Gel TCRE VEP sanity check — {SUBJECT_BASENAME}\n"
+        f"Gel TCRE VEP sanity check — subject {display_id}\n"
         "Unified pipeline: 60 Hz notch + 0.05-55 Hz bandpass only (no wavelet, no z-score)",
         fontsize=11,
     )

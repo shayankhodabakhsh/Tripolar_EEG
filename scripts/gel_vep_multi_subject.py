@@ -30,6 +30,31 @@ ROOT = os.path.dirname(HERE)
 
 GEL_DIR_DEFAULT = os.path.join(ROOT, "Gel TCRE", "10-20-2024")
 OUT_DIR = os.path.join(ROOT, "output", "gel_vep_sanity_check")
+SUBJECT_KEY_CSV = os.path.join(ROOT, "data", "SUBJECT_KEY.csv")
+
+# Hard-coded display labels for sessions not registered in SUBJECT_KEY.csv
+# (e.g. QC-failed sessions that are documented qualitatively only). Keeps raw
+# subject identifiers out of figure titles even when the csv is unavailable.
+DISPLAY_OVERRIDES = {
+    "BA-2-10-20-2024": "Gel session, excluded (QC fail)",
+}
+
+
+def display_label_for(basename):
+    """Return the de-identified display label for a raw subject basename.
+
+    Looks up SUBJECT_KEY.csv first, then DISPLAY_OVERRIDES, then falls back to
+    a generic ``Gel session`` label so raw IDs never reach figure titles.
+    """
+    if basename in DISPLAY_OVERRIDES:
+        return DISPLAY_OVERRIDES[basename]
+    if os.path.exists(SUBJECT_KEY_CSV):
+        import csv
+        with open(SUBJECT_KEY_CSV) as f:
+            for row in csv.DictReader(f):
+                if row.get("raw_name") == basename or row.get("basename") == basename:
+                    return f"subject {row['display_id']}"
+    return "Gel session"
 
 FS = 1000.0
 PRE_S = 0.1
@@ -262,13 +287,17 @@ def process_subject(basename, gel_dir):
     ax_disc.grid(alpha=0.25)
     rows_summary.append(("Disc (Ch7)", n75, p100, n135))
 
+    display_label = display_label_for(basename)
     fig.suptitle(
-        f"Gel TCRE VEP — {basename}  (n={len(stim_samples)} epochs)\n"
+        f"Gel TCRE VEP — {display_label}  (n={len(stim_samples)} epochs)\n"
         "Pipeline: 60 Hz notch + 0.05–55 Hz FIR Hamming. tEEG = 16·inner − outer.",
         fontsize=11,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    out_png = os.path.join(OUT_DIR, f"{basename}_corrected.png")
+    # Output filename uses the de-identified display ID rather than the raw
+    # basename so the per-subject PNGs themselves do not leak identifiers.
+    safe_label = display_label.replace(" ", "_").replace(",", "").replace("(", "").replace(")", "")
+    out_png = os.path.join(OUT_DIR, f"gel_vep_{safe_label}.png")
     fig.savefig(out_png, dpi=130)
     plt.close(fig)
     print(f"  saved {out_png}")

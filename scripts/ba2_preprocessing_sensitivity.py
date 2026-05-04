@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 GEL_DIR = os.path.join(ROOT, "Gel TCRE", "10-20-2024")
 SUBJECT = "BA-2-10-20-2024"
+SUBJECT_DISPLAY = "Excluded gel session (QC fail)"
 OUT_DIR = os.path.join(ROOT, "output", "gel_vep_sanity_check")
 OUT_PNG = os.path.join(OUT_DIR, "BA-2_preprocessing_sensitivity.png")
 
@@ -150,7 +151,7 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     prefix = os.path.join(GEL_DIR, SUBJECT)
     n_ch, res, fs = parse_vhdr(prefix + ".vhdr")
-    print(f"BA-2: n_ch={n_ch}, fs={fs:.0f} Hz, ch1 res={res[0]:.6f} µV/bit")
+    print(f"{SUBJECT_DISPLAY}: n_ch={n_ch}, fs={fs:.0f} Hz, ch1 res={res[0]:.6f} µV/bit")
 
     raw_int = np.fromfile(prefix + ".eeg", dtype=np.int16)
     n = len(raw_int) // n_ch
@@ -254,7 +255,8 @@ def main():
     for ax in axes[2]:
         ax.set_xlabel("Time (ms) — 0 = checkerboard reversal")
     fig.suptitle(
-        f"BA-2 preprocessing sensitivity (n={len(trigs)} Trigger,T 1 events, "
+        f"{SUBJECT_DISPLAY}: preprocessing sensitivity "
+        f"(n={len(trigs)} Trigger,T 1 events, "
         "tEEG = 16·inner − outer, baseline = −100…0 ms)",
         fontsize=11,
     )
