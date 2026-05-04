@@ -176,8 +176,8 @@ The framing throughout is descriptive and pilot-grade: cohort sizes are small, s
 The cohort comprises three TCRE construction classes recorded across two acquisition setups (Table~\ref{tab:cohort}).
 
 \begin{itemize}
-\item \textbf{Felt setup} (URI lab, 2026). Eleven-channel BrainVision recording at 1000~Hz: four felt TCREs (channels 1--8, alternating tEEG/eEEG), one paste TCRE (channels 9--10), and a paste conventional disc (channel 11). The cohort comprises all felt sessions (long and short) that pass per-subject signal-quality QC as specified in Section~\ref{sec:qc}. Felt sessions divide into two physical sub-cohorts by the screw used to seat the TCRE in its 3D-printed housing. Long-felt (LF) sessions use the longer-screw housing, which seats a thicker saline-soaked felt pad and supports a longer recording window; short-felt (SF) sessions use the shorter-screw housing. The two sub-cohorts are pooled for the primary analyses in Section~\ref{sec:cohort_qc}--§3.6, and supplement Section~S6 verifies that the construction-level conclusions hold in each sub-cohort separately.
-\item \textbf{Gel setup} (URI lab, October--November 2024). Seven-channel BrainVision recording at 1000~Hz: two gel TCREs at O1 and O2 (channels 1--4), one paste TCRE at Pz (channels 5--6), and a conventional disc at Pz (channel 7). Cohort: all gel subjects discoverable under the project gel directory that pass per-subject QC (Section~\ref{sec:qc}).
+\item \textbf{Felt setup} (URI lab, 2026). Eleven-channel BrainVision recording at 1000~Hz: four felt TCREs (channels 1--8, alternating tEEG/eEEG), one paste TCRE (channels 9--10), and a paste conventional disc (channel 11). The cohort comprises all felt sessions (long and short) that pass per-subject signal-quality QC as specified in Section~\ref{sec:qc}. Felt sessions divide into two physical sub-cohorts by the screw used to seat the TCRE in its 3D-printed housing. Long-felt (LF) sessions use the longer-screw housing, which seats a thicker saline-soaked felt pad and supports a longer recording window; short-felt (SF) sessions use the shorter-screw housing \TBD{ Maryam, can you please confirm this ? can you please explain the details of how you made it and also the devices fro this section}. The two sub-cohorts are pooled for the primary analyses in Section~\ref{sec:cohort_qc}--§3.6, and supplement Section~S6 verifies that the construction-level conclusions hold in each sub-cohort separately.
+\item \textbf{Gel setup} (URI lab, October--November 2024). Seven-channel BrainVision recording at 1000~Hz: two gel TCREs at O1 and O2 (channels 1--4), one paste TCRE at Pz (channels 5--6), and a conventional disc at Pz (channel 7). Cohort: all gel subjects discoverable under the project gel directory that pass per-subject \TBD{Behtam can you please explain this data capturing sessions in detail ?}QC (Section~\ref{sec:qc}).
 \item \textbf{Paste TCRE bridge.} Paste TCRE is present in both setups and serves as the cross-setup comparability check.
 \end{itemize}
 
@@ -198,58 +198,255 @@ Gel                  &  7 & gel~$\times 2$, paste~$\times 1$, disc  & 13 \\
 \end{table}
 
 \subsection{Recording Setups}
+The TCRE has three concentric conductive rings: an outer ring at radius $r_{o}$, a middle/inner ring at radius $r_{i}<r_{o}$, and a central disc. Let $V_{o}$, $V_{i}$, and $V_{d}$ be
+   the potentials measured on each ring relative to a remote reference. The conventional (eEEG) channel is the outer-ring potential                                                     
+  \begin{equation}                                                                                                                                                                      
+  V_{\mathrm{eEEG}} \;=\; V_{o}.                                                                                                                                                        
+  \label{eq:eeeg}                                                                                                                                                                       
+  \end{equation}                                                                                                                                                                        
+  The on-board tEEG channel is the amplifier's hardware-implemented surface-Laplacian estimate~\cite{besio2006},                                                                        
+  \begin{equation}                                                                                                                                                                      
+  V_{\mathrm{tEEG}}
+  \;=\;                                                                                                                                                                                 
+  \alpha_{i}\,V_{i} \;-\; \alpha_{o}\,V_{o} \;-\; \alpha_{d}\,V_{d},
+  \label{eq:teeg}                                                                                                                                                                       
+  \end{equation}
+  where the weights $\alpha_{i},\alpha_{o},\alpha_{d}$ are set by the amplifier's analog front-end so that the linear combination approximates the discrete second spatial derivative on
+   a flat scalp~\cite{besio2006,koka2007}. Both setups in this study record $V_{\mathrm{tEEG}}$ as a hardware output: no software Laplacian reconstruction from the three ring channels 
+  is performed.
 
 Both setups record BrainVision INT16 binary data at 1000~Hz. Amplifier resolution is read directly from each subject's .vhdr at load time (0.1~$\upmu$V/bit on most sessions; 0.0488~$\upmu$V/bit on a subset of gel sessions recorded with a different amplifier model).
 
 In both setups the tEEG channel is the amplifier's hardware Laplacian output, and the eEEG channel is the conventional outer-ring derivation referenced to a remote site. No software Laplacian reconstruction is performed.
 
-No per-channel amplitude scaling is applied beyond the int16-to-microvolt conversion specified in each subject's .vhdr.
+No per-channel amplitude scaling is applied beyond the int16-to-microvolt conversion specified in each subject's .vhdr.\\
+  Raw integer codes $K_{c}[n]\in\{-32{,}768,\ldots,32{,}767\}$ are converted to micro-volts at load time using the per-channel resolution $r_{c}$ ($\upmu$V/bit) read directly from the
+  subject's \texttt{.vhdr}:                                                                                                                                                             
+  \begin{equation}                                       
+  x_{c}[n] \;=\; K_{c}[n]\,\cdot\,r_{c}.                                                                                                                                                
+  \label{eq:adc}                                         
+  \end{equation}                                                                                                                                                                        
+  Most sessions use $r_{c}=0.1\ \upmu$V/bit (V-Amp); a subset of gel sessions recorded on a different amplifier (BrainAmp) use $r_{c}=0.0488\ \upmu$V/bit. No further per-channel
+  amplitude scaling is applied. 
 
 \subsection{Preprocessing Pipeline}
 
 The primary pipeline is intentionally minimal so that adaptive cleaners cannot behave differently across constructions and confound the comparison:
 
 \begin{enumerate}[label=(\alph*)]
-\item 60~Hz IIR notch filter ($Q=30$).
-\item Zero-phase FIR bandpass 0.05--55~Hz, Hamming window.
+\item 60~Hz IIR notch filter ($Q=30$). The analog prototype is
+  \begin{equation}                                                                                                                                                                      
+  H_{\mathrm{notch}}(s) \;=\; \frac{s^{2} + \omega_{0}^{2}}{s^{2} + (\omega_{0}/Q)\,s + \omega_{0}^{2}},
+  \qquad \omega_{0} = 2\pi f_{0},\; f_{0}=60~\mathrm{Hz},                                                                                                                               
+  \label{eq:notch}                                                                                                                                                                      
+  \end{equation}                                                                                                                                                                        
+  which is mapped to a digital filter via the bilinear transform with sample rate $f_{s}=1000$~Hz. The $-3$~dB notch bandwidth is $\mathrm{BW} = f_{0}/Q = 2$~Hz.                       
+                                                                               
+ \item Zero-phase FIR bandpass 0.05--55~Hz, Hamming window. The bandpass impulse response is the Hamming-windowed difference of two ideal lowpass kernels:
+  \begin{align}                                                                                                                                                                         
+  h[n] &= w[n]\bigl(2 f_{h}\,\mathrm{sinc}(2 f_{h} \tilde{n}) - 2 f_{l}\,\mathrm{sinc}(2 f_{l} \tilde{n})\bigr),                                                                        
+  \quad \tilde{n} = (n - (N-1)/2)/f_{s},\nonumber\\                                                                                                                                     
+  w[n] &= 0.54 - 0.46\cos\!\Bigl(\tfrac{2\pi n}{N-1}\Bigr),\qquad n = 0,\ldots,N-1,                                                                                                     
+  \label{eq:fir}                                                                                                                                                                        
+  \end{align}                                                                                                                                                                           
+  with passband edges $f_{l}=0.05$~Hz, $f_{h}=55$~Hz and tap count $N$ chosen to span four cycles of $f_{l}$. Zero-phase response is achieved by forward--backward filtering:           
+  \begin{equation}                                                                                                                                                                      
+  y[n] \;=\; \bigl(h \ast \bigl(\overleftarrow{h \ast x}\bigr)\bigr)[n],
+  \label{eq:filtfilt}                                                                                                                                                                   
+  \end{equation}                                                                                                                                                                        
+  which gives an effective magnitude response $|H_{\mathrm{eff}}(\omega)|^{2}$ and zero group delay.                                                                                    
+        
 \item No wavelet denoising. No ICA. No automated bad-channel interpolation. No re-referencing (the Laplacian is internal to each TCRE; the disc reference is the recorded mastoid).
-\item Per-channel z-score normalization is applied only \emph{after} metric computation, never before SNR or PSD.
+\item Per-channel z-score normalization is applied only \emph{after} metric computation, never before SNR or PSD:
+  \begin{equation}                                                                                                                                                                      
+  z_{c}[n] \;=\; \frac{x_{c}[n] - \mu_{c}}{\sigma_{c}},
+  \qquad                                                                                                                                                                                
+  \mu_{c} = \frac{1}{T}\sum_{n=0}^{T-1} x_{c}[n],\quad   
+  \sigma_{c}^{2} = \frac{1}{T-1}\sum_{n=0}^{T-1}\bigl(x_{c}[n]-\mu_{c}\bigr)^{2},                                                                                                       
+  \label{eq:zscore}                                                                                                                                                                     
+  \end{equation}                                                                                                                                                                        
+  where $c$ indexes channels and $T$ is the number of samples in the segment under test (per-epoch in variant~A, per-recording when reported as a normalised trace).
 \end{enumerate}
 
 Three sensitivity variants are reported in the supplement: (A)~notch + bandpass + Daubechies-8 level-3 wavelet + per-epoch z-score (the original gel-TCRE pipeline); (B)~notch + bandpass only (primary); (C)~notch only. Conclusions are required to hold across all three before any claim is retained in the main text.
 
-\subsection{Quality Control and Exclusions}\label{sec:qc}
 
-QC gates are applied per subject and per channel:
-
-\begin{itemize}
-\item Channels with $>5\%$ ADC clipping are excluded from group statistics for that subject; the subject is retained for unaffected channels.
-\item Subjects with fewer than two eyes-open or two eyes-closed epochs are excluded entirely.
-\item Subjects with unknown channel layouts (e.g.\ early nine-channel felt prototypes without a registered config) are excluded.
-\end{itemize}
-
-Exclusion counts, reasons, and per-subject QC tables are reported in Section~\ref{sec:cohort_qc} and the supplement.
+\subsection{Quality Control and Exclusions}\label{sec:qc}                                                                                 
+Each subject and each channel is screened on two computed quantities and three count-based integrity checks before entering the analysis cohort. The two computed quantities are the  
+ADC clipping fraction and the mean tEEG alpha SNR.     
+                                                                             
+\paragraph{ADC clipping fraction.} For channel $c$ recorded with INT16 resolution $r_{c}$ ($\upmu$V/bit) and rail $K_{\max}=32{,}767$, the per-channel clipping fraction is           
+\begin{equation}
+\mathrm{clip}_{c}                                                                                                                                                                     
+\;=\;                                                  
+\frac{1}{T}\sum_{n=0}^{T-1}\mathbb{1}\!\left\{\,\bigl|x_{c}[n]\bigr|\,/\,r_{c}\,\ge\,K_{\max}-1\,\right\},
+\label{eq:clip}                                                                                                                                                                       
+\end{equation}
+where $T$ is the recording length in samples and $\mathbb{1}\{\cdot\}$ is the indicator function. The per-subject clipping percentage reported in Table~\ref{tab:qc} is the mean      
+across all channels: $\overline{\mathrm{clip}} = (100/C)\sum_{c=1}^{C}\mathrm{clip}_{c}$.                                                                                             
+ 
+\paragraph{Mean tEEG alpha SNR.} Let $\mathcal{T}\subseteq\{1,\ldots,C\}$ index the subject's tEEG channels (the four felt-tEEG plus the paste-tEEG channel for the felt setup; the   
+two gel-tEEG plus the paste-tEEG channel for the gel setup). The per-subject mean tEEG alpha SNR is
+\begin{equation}                                                                                                                                                                      
+\overline{\mathrm{SNR}_{\alpha}^{\,t}}                 
+\;=\;                                                                                                                                                                                 
+\frac{1}{|\mathcal{T}|}\sum_{c\in\mathcal{T}}\mathrm{SNR}_{\alpha}^{(c)},
+\label{eq:meansnrt}                                                                                                                                                                   
+\end{equation}                                         
+with $\mathrm{SNR}_{\alpha}^{(c)}$ defined as in Eq.~\eqref{eq:snr}. We use this aggregate, not any single channel, as the SNR-based QC gate so that one bad tEEG channel cannot fail 
+an otherwise good recording.                                                 
+\paragraph{Decision rule.} Each subject is assigned a three-tier status using the gates in Table~\ref{tab:qc_rule}. The rule first checks four hard-fail conditions; a subject failing
+ any one is excluded entirely. The rule then counts soft-flag conditions; a subject with exactly one soft flag is retained with a \textbf{WARN} status, and a subject with two or more
+ soft flags is excluded.                                                                                                                                                              
+                                                       
+\begin{table}[H]
+\caption{QC decision rule. \texttt{n\_open}, \texttt{n\_close} are eyes-open and eyes-closed epoch counts; \texttt{dur} is the recording duration in seconds.}
+\label{tab:qc_rule}                                                                                                                                                                   
+\centering\small
+\begin{tabular}{llc}                                                                                                                                                                  
+\toprule                                               
+\textbf{Type} & \textbf{Condition} & \textbf{Effect} \\                                                                                                                               
+\midrule                                                                                                                                                                              
+Hard-fail  & $\overline{\mathrm{clip}} > 5\%$ & exclude subject \\
+Hard-fail  & $\overline{\mathrm{SNR}_{\alpha}^{\,t}} < -1\ \mathrm{dB}$ & exclude subject \\                                                                                          
+Hard-fail  & $\texttt{n\_open} < 2$ \;\textbf{or}\; $\texttt{n\_close} < 2$ & exclude subject \\                                                                                      
+Hard-fail  & $\texttt{dur} < 60\ \mathrm{s}$ & exclude subject \\                                                                                                                     
+Hard-fail  & unknown channel-layout (e.g.\ 9-channel prototype) & exclude subject \\                                                                                                  
+\midrule                                                                                                                                                                              
+Soft-flag  & $2\% < \overline{\mathrm{clip}} \le 5\%$ & WARN \\                                                                                                                       
+Soft-flag  & $-1\ \mathrm{dB} \le \overline{\mathrm{SNR}_{\alpha}^{\,t}} < 0\ \mathrm{dB}$ & WARN \\                                                                                  
+\midrule                                                                                                                                                                              
+Aggregator & $\ge 2$ soft flags simultaneously & exclude subject \\                                                                                                                   
+\bottomrule                                                                                                                                                                           
+\end{tabular}                                                                                                                                                                         
+\end{table}                                                                                                                                                                           
+ 
+The status field in Table~\ref{tab:qc} reports \textbf{PASS} for subjects with no flags, \textbf{WARN} for subjects with exactly one soft flag (retained in primary analyses;         
+supplement Section~S2 reports a PASS-only sensitivity check), and the row is omitted for excluded subjects. The exclusion list (subjects rejected by the hard-fail gates) is reported
+in Supplement Section~S2.                                                                                                                                                             
+                                                       
+A separate per-channel rule applies inside otherwise-PASS subjects: any individual channel with $\mathrm{clip}_{c}>5\%$ is dropped from group statistics for that subject only, while 
+the rest of the recording is retained.
 
 \subsection{Endpoints}
 
 We report only \emph{scale-invariant} endpoints in the main cross-construction comparison, because the gel setup applies a hardware-level $1/187$ scaling on tEEG channels that makes raw amplitudes incomparable to the felt setup.
 
 \begin{itemize}
-\item \textbf{Alpha-band SNR (dB)}: $10\log_{10}(P_{\alpha}/P_{\mathrm{neighbor}})$, with $P_\alpha$ over 8--13~Hz and $P_{\mathrm{neighbor}}$ from flanking sub-bands of equal width, computed from the Welch PSD~\cite{welch1967} ($n_{\mathrm{per\,seg}}=4096$).
-\item \textbf{Alpha reactivity}: $P_{\alpha,\mathrm{closed}}/P_{\alpha,\mathrm{open}}$; values $>1$ indicate the Berger effect~\cite{kirschfeld2005}.
-\item \textbf{Spectrogram SSIM}: structural similarity~\cite{wang2004} between the per-pair tEEG and eEEG spectrograms ($n_{\mathrm{per\,seg}}=2048$, $f_{\max}=45$~Hz). SSIM is dimensionless and directly cross-setup comparable.
+\item \textbf{Alpha-band SNR (dB)} computed from the Welch PSD $\hat{S}(f)$~\cite{welch1967}:                                                                                         
+  \begin{equation}                                                                                                                                                                      
+  \mathrm{SNR}_{\alpha}\,\bigl[\mathrm{dB}\bigr]
+  \;=\;                                                                                                                                                                                 
+  10\log_{10}\!\frac{P_{\alpha}}{P_{\mathrm{nbr}}},      
+  \quad                                                                                                                                                                                 
+  P_{\alpha}=\!\int_{8}^{13}\!\hat{S}(f)\,df,                                                                                                                                           
+  \quad                                                                                                                                                                                 
+  P_{\mathrm{nbr}}=\tfrac{1}{2}\!\Bigl[\!\int_{3}^{8}\hat{S}(f)\,df + \!\int_{13}^{18}\hat{S}(f)\,df\Bigr].                                                                             
+  \label{eq:snr}                                                                                                                                                                        
+  \end{equation}
+
+  The Welch PSD~\cite{welch1967} averages periodograms of $K$ overlapping Hamming-windowed segments of length $L=n_{\mathrm{per\,seg}}$ with $50\%$ overlap:
+  \begin{equation}                                                                                                                                                                      
+  \hat{S}(f)                                             
+  \;=\;                                                                                                                                                                                 
+  \frac{1}{K \cdot L \cdot U}\sum_{k=1}^{K}\Bigl|\sum_{n=0}^{L-1}w[n]\,x_{k}[n]\,e^{-j2\pi f n/f_{s}}\Bigr|^{2},
+  \label{eq:welch}                                                                                                                                                                      
+  \end{equation}
+  where $w[n]$ is the Hamming window, $U=(1/L)\sum_{n}w[n]^{2}$ is the window normalisation, $x_{k}$ is the $k$-th windowed segment, and $L=4096$ for the SNR endpoints and $L=2048$ for
+   the spectrograms used as SSIM inputs.    
+\item \textbf{Alpha reactivity} is the closed/open ratio                                                                                                                              
+  \begin{equation}                                                                                                                                                                      
+  R_{\alpha} \;=\; \frac{P_{\alpha,\mathrm{closed}}}{P_{\alpha,\mathrm{open}}},
+  \label{eq:reactivity}                                                                                                                                                                 
+  \end{equation}                                         
+  with $P_{\alpha,\cdot}$ defined as in Eq.~\eqref{eq:snr} and computed separately on the eyes-closed and eyes-open epochs. Values $R_{\alpha}>1$ indicate the Berger                   
+  effect~\cite{kirschfeld2005}.
+\item \textbf{Spectrogram SSIM}~\cite{wang2004} between the per-pair tEEG spectrogram $X$ and eEEG spectrogram $Y$ (each computed with $n_{\mathrm{per\,seg}}=2048$,                  
+  $f_{\max}=45$~Hz):                                                                                                                                                                    
+  \begin{equation}
+  \mathrm{SSIM}(X,Y)                                                                                                                                                                    
+  \;=\;                                                  
+  \frac{(2\mu_{X}\mu_{Y}+c_{1})(2\sigma_{XY}+c_{2})}                                                                                                                                    
+       {(\mu_{X}^{2}+\mu_{Y}^{2}+c_{1})(\sigma_{X}^{2}+\sigma_{Y}^{2}+c_{2})},                                                                                                          
+  \label{eq:ssim}                                                                                                                                                                       
+  \end{equation}                                                                                                                                                                        
+  where $\mu$, $\sigma^{2}$ and $\sigma_{XY}$ are the local mean, variance and covariance over an $11\times11$ Gaussian window, and $c_{1}=(0.01\,L)^{2}$, $c_{2}=(0.03\,L)^{2}$ are    
+  stabilising constants with $L$ the dynamic range. SSIM is dimensionless and bounded on $[0,1]$, hence directly cross-setup comparable.                                                
+   
+
 \item \textbf{Visual evoked potential (Felt setup only)}: peak-to-peak amplitude of the pre-averaged checkerboard response, reported for the two long-felt subjects whose .avg files are available in this study (LF02, LF03). VEPs from the gel cohort are excluded from the present analysis because the gel-era acquisition produced unreliable evoked responses under the harmonized pipeline; see Section~\ref{sec:vep_scope} for scope of this exclusion.
 \end{itemize}
 
 \subsection{Statistical Analysis}
 
-The subject is the unit of analysis throughout. For each metric we aggregate per subject and per channel class (FELT\_TEEG, GEL\_TEEG, PASTE\_TEEG, FELT\_EEEG, GEL\_EEEG, PASTE\_EEEG, DISC). The choice of test depends on whether a contrast is paired or independent. Within a setup, cross-construction contrasts---Felt-tEEG vs.\ Paste-tEEG inside the felt cohort, Gel-tEEG vs.\ Paste-tEEG inside the gel cohort, and the eEEG counterparts---are paired by subject, because both constructions sit on the same head-cap during the same recording; we test these with the two-sided Wilcoxon signed-rank test and report Cohen's $d_z$ together with the matched-pairs rank-biserial correlation $r$. Between-setup contrasts---Felt-tEEG vs.\ Gel-tEEG, and the paste-TCRE bridge between the felt and gel setups---are independent samples and use the two-sided Mann--Whitney U test with Cohen's $d$. Central tendency is reported as the median with bootstrap BCa 95\% confidence intervals at 10{,}000 resamples. We report effect sizes and confidence intervals alongside $p$-values, and we do not adjust for multiple comparisons because the analysis is descriptive and the three endpoints are pre-specified.
+The subject is the unit of analysis throughout. For each metric we aggregate per subject and per channel class (FELT\_TEEG, GEL\_TEEG, PASTE\_TEEG, FELT\_EEEG, GEL\_EEEG, PASTE\_EEEG, DISC). The choice of test depends on whether a contrast is paired or independent. Within a setup, cross-construction contrasts---Felt-tEEG vs.\ Paste-tEEG inside the felt cohort, Gel-tEEG vs.\ Paste-tEEG inside the gel cohort, and the eEEG counterparts---are paired by subject, because both constructions sit on the same head-cap during the same recording; we test these with the two-sided Wilcoxon signed-rank test and report Cohen's $d_z$ together with the matched-pairs rank-biserial correlation $r$. Between-setup contrasts---Felt-tEEG vs.\ Gel-tEEG, and the paste-TCRE bridge between the felt and gel setups---are independent samples and use the two-sided Mann--Whitney U test with Cohen's $d$.
+
+
+\begin{equation}                                                                                                                                                                      
+  W = \min\!\bigl(R_{+},R_{-}\bigr),                     
+  \label{eq:wilcoxon}                                                                                                                                                                   
+  \end{equation}                                         
+  with $R_{\pm}$ as in Eq.~\eqref{eq:rrb}. The Mann--Whitney $U$ for independent samples $A$, $B$ is                                                                                    
+  \begin{equation}                                                                                                                                                                      
+  U
+  \;=\;                                                                                                                                                                                 
+  \sum_{i \in A}\sum_{j \in B}                           
+  \bigl[\,\mathbb{1}\{x_{i}>y_{j}\} + \tfrac{1}{2}\,\mathbb{1}\{x_{i}=y_{j}\}\bigr].                                                                                                    
+  \label{eq:mwu}                                                                                                                                                                        
+  \end{equation}                                                                                                                                                                        
+  Two-sided $p$-values are computed from the exact distribution when $n\le 25$ and from the normal approximation otherwise; both are produced by \texttt{scipy.stats.wilcoxon} and      
+  \texttt{scipy.stats.mannwhitneyu} (SciPy 1.x~\cite{virtanen2020}).                                                                                                                    
+   
+
+For a paired contrast with by-subject differences $d_{i}=a_{i}-b_{i}$, $i=1,\ldots,n$, we report Cohen's $d_{z}$ together with the matched-pairs rank-biserial correlation:
+  \begin{equation}                                                                                                                                                                      
+  d_{z}                                                  
+  \;=\;                                                       
+  \frac{\bar{d}}{s_{d}},                                 
+  \qquad                                                                                                         
+  \bar{d}=\frac{1}{n}\sum_{i=1}^{n} d_{i},
+  \quad                                                                                                           
+  s_{d}^{2} = \frac{1}{n-1}\sum_{i=1}^{n}\bigl(d_{i}-\bar{d}\bigr)^{2},
+  \label{eq:dz}                                                                                                   
+  \end{equation}                                                                                                  
+  \begin{equation}                                                                                              
+  r_{\mathrm{rb}}                                                                                                  
+  \;=\;                                                                                                            
+  \frac{R_{+} - R_{-}}{R_{+} + R_{-}},
+  \qquad                                                                                                        
+  R_{\pm} = \!\!\!\sum_{i:\,\mathrm{sign}(d_{i})=\pm}\!\!\!\mathrm{rank}\bigl(|d_{i}|\bigr),                     
+  \label{eq:rrb}                                                                                                 
+  \end{equation}                                                                                                                                                                        
+  where ranks are over the nonzero $|d_{i}|$. For an independent contrast between groups $A$ ($n_{A}$ subjects) and $B$ ($n_{B}$), we report Cohen's $d$:                               
+  \begin{equation}                                                                                                                                                                      
+  d
+  \;=\;                                                                                                          
+  \frac{\bar{x}_{A} - \bar{x}_{B}}{s_{p}},                                                                        
+  \qquad
+  s_{p}^{2}                                                                                                    
+  =                                                                                                               
+  \frac{(n_{A}-1)s_{A}^{2} + (n_{B}-1)s_{B}^{2}}{n_{A}+n_{B}-2}.
+  \label{eq:cohend}                                                                                             
+  \end{equation}  
+For each per-class metric we report the median together with a bootstrap bias-corrected and accelerated (BCa) 95\% confidence interval~\cite{efron1987} computed from $B=10{,}000$
+  resamples drawn with replacement at the subject level. Writing $\hat{\theta}=\mathrm{median}(x)$ and $\{\hat{\theta}^{*}_{b}\}_{b=1}^{B}$ for the bootstrap distribution, the BCa     
+  endpoints are the $\alpha_{1}$ and $\alpha_{2}$ quantiles of $\{\hat{\theta}^{*}_{b}\}$ with
+  \begin{equation}                                                                                                                                                                      
+  \alpha_{j}                                                                                                                                                                            
+  \;=\;
+  \Phi\!\left(\hat{z}_{0} + \frac{\hat{z}_{0}+z_{(j)}}{1 - \hat{a}\bigl(\hat{z}_{0}+z_{(j)}\bigr)}\right),                                                                              
+  \quad j\in\{1,2\},                                                                                                                                                                    
+  \label{eq:bca}
+  \end{equation}                                                                                                                                                                        
+  where $\Phi$ is the standard-normal CDF, $z_{(1)}=z_{0.025}$ and $z_{(2)}=z_{0.975}$ are the 95\% quantiles,                                                                          
+  $\hat{z}_{0}=\Phi^{-1}\!\bigl(\tfrac{1}{B}\#\{\hat{\theta}^{*}_{b}<\hat{\theta}\}\bigr)$ is the bias-correction term, and $\hat{a}$ is the acceleration estimated by jackknife as     
+  in~\cite{efron1987}. Random seed is fixed at $0$ in \texttt{scripts/build\_paper\_stats.py} so that re-running the script reproduces the reported intervals exactly.  
 
 %-------------------------------------------------------------------------------
 \section{Results}
 
 \subsection{Cohort and QC Outcomes}\label{sec:cohort_qc}
-The QC pipeline assigns each subject a three-tier status: \textbf{PASS} when no flags trigger, \textbf{WARN} when exactly one soft flag triggers (clipping in $(2,5]\%$ or mean tEEG alpha SNR in $[-1,0)$~dB), and \textbf{FAIL} (subject excluded) when any hard threshold is breached (clipping $>5\%$, SNR $<-1$~dB, fewer than two epochs of either condition, or two simultaneous WARN flags). Per-channel ADC clipping above $5\%$ excludes only the affected channel from group statistics; the rest of the recording is retained. After QC, the analysis cohort comprises 10 felt subjects (3 long-felt and 7 short-felt) and 13 gel subjects (Table~\ref{tab:qc}).
+Per the QC rule of Section~\ref{sec:qc} (Table~\ref{tab:qc_rule}), the analysis cohort comprises 10 felt subjects (3 long-felt and 7 short-felt) and 13 gel subjects. Per-subject QC outcomes are reported in Table~\ref{tab:qc}.
 
 \begin{table}[H]
 \caption{Per-subject QC outcomes. Subjects are de-identified with cohort-prefixed codes (LF = long felt; SF = short felt; G = gel) assigned alphabetically by raw recording name. Status: PASS if no flags trigger; WARN if exactly one soft flag triggers (clip $2$--$5$\%, or mean tEEG SNR in $[-1,0)$~dB); FAIL if any hard threshold is breached (clip $>5\%$, SNR $<-1$~dB, $<2$ epochs of either condition, or two simultaneous WARN flags).}
@@ -347,7 +544,33 @@ Figure~\ref{fig:ssim} shows the per-pair SSIM between tEEG and eEEG spectrograms
 \end{figure}
 
 \subsection{Paste-TCRE Cross-Setup Bridge}
-The paste TCRE is recorded in both setups, so its between-setup behaviour acts as a sanity check on residual cross-setup variance that is not attributable to construction. Figure~\ref{fig:paste_bridge} shows the three endpoints on paste TCRE in the felt setup vs.\ the gel setup. None of the three Mann--Whitney contrasts separate the two cohorts at conventional thresholds (alpha SNR $U=89$, $p=0.15$, $d=+0.51$; reactivity $U=46$, $p=0.25$, $d=-0.39$; SSIM $U=69$, $p=0.83$, $d=+0.01$; $n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$). At these sample sizes the bridge has roughly 60\% power against a Cohen's $d$ of $0.8$, so we cannot rule out smaller between-setup effects. What the bridge does rule out is a between-setup effect of the magnitude we see across constructions in §3.5---the Felt-vs-Gel SSIM contrast of $d=-2.52$ is more than three times the largest paste-bridge effect---so the cross-construction findings are unlikely to be driven primarily by acquisition-side differences between the two setups.
+The paste TCRE is recorded in both setups, so its between-setup behaviour acts as a sanity check on residual cross-setup variance that is not attributable to construction. Figure~\ref{fig:paste_bridge} shows the three endpoints on paste TCRE in the felt setup vs.\ the gel setup. None of the three Mann--Whitney contrasts separate the two cohorts at conventional thresholds (alpha SNR $U=89$, $p=0.15$, $d=+0.51$; reactivity $U=46$, $p=0.25$, $d=-0.39$; SSIM $U=69$, $p=0.83$, $d=+0.01$; $n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$). At these sample sizes the bridge has roughly 60\% power against a Cohen's $d$ of $0.8$, so we cannot rule out smaller between-setup effects.   For the paste-bridge contrast (Mann--Whitney U with $n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$), the asymptotic power against an alternative with standardised effect size $d$ is
+  \begin{equation}                                                                                                                                                                      
+  1-\beta                                                                                                                                                                               
+  \;=\;                                                                                                                                                                                 
+  \Phi\!\left(                                                                                                                                                                          
+  -z_{1-\alpha/2} +                                      
+  d\sqrt{\frac{n_{\mathrm{felt}}\,n_{\mathrm{gel}}}{n_{\mathrm{felt}}+n_{\mathrm{gel}}}}                                                                                                
+  \right),                                                                                                                                                                              
+  \label{eq:power}                                                                                                                                                                      
+  \end{equation}                                                                                                                                                                        
+  which gives $1-\beta\approx 0.60$ at $d=0.8$ and $\alpha=0.05$. Smaller between-setup effects cannot be ruled out at the present sample sizes.\\
+ What the bridge does rule out is a between-setup effect of the magnitude we see across constructions in §3.5---the Felt-vs-Gel SSIM contrast of $d=-2.52$ is more than three times the largest paste-bridge effect---so the cross-construction findings are unlikely to be driven primarily by acquisition-side differences between the two setups. 
+ For each canonical component $C\in\{\mathrm{N75},\mathrm{P100},\mathrm{N135}\}$ with search window $[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]$, the reported latency $\hat{t}_{C}$ is
+  \begin{equation}
+  \hat{t}_{C}
+  \;=\;
+  \arg\!\!\!\min_{t\in[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]}\!\!\bar{V}(t)
+  \quad (\text{negative components, N75/N135}),
+  \qquad
+  \arg\!\!\!\max_{t\in[\cdot,\cdot]}\!\!\bar{V}(t)
+  \quad (\text{positive component, P100}),
+  \label{eq:peak}
+  \end{equation}
+  with $\bar{V}(t)$ the channel-mean grand-average evoked response. A latency that pins at $t_{C,\mathrm{lo}}$ or $t_{C,\mathrm{hi}}$ is reported as ``n.r.''
+  (Section~\ref{tab:felt_vep}).
+ 
+
 
 \begin{figure}[H]
 \centering
