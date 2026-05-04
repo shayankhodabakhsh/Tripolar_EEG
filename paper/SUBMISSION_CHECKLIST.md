@@ -17,7 +17,7 @@ person to fill them in.
 
 ## Human input needed before circulating beyond the immediate team
 
-- [ ] **Author list**: replace the four `[TBD: Author N Surname]` slots in `main.tex`. Suggested fill from email context: Behtom Adeli (gel data + original pipeline), Maryam (3D housings). Walter to confirm order.
+- [x] **Author list**: Shayan Khodabakhsh, Behtom Adeli, Maryam Norouzi, Walter G. Besio. Walter to confirm final order.
 - [ ] **ORCIDs**: replace `0000-0000-0000-0000` × 4.
 - [ ] **Co-author emails** in the affiliation block.
 - [ ] **CRediT contributions block** in `main.tex` (`\authorcontributions{}`).

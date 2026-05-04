@@ -14,6 +14,9 @@ authors:
   - family-names: Adeli
     given-names: Behtom
     affiliation: University of Rhode Island, Department of Electrical, Computer and Biomedical Engineering
+  - family-names: Norouzi
+    given-names: Maryam
+    affiliation: University of Rhode Island, Department of Electrical, Computer and Biomedical Engineering
   - family-names: Besio
     given-names: Walter G.
     affiliation: University of Rhode Island, Department of Electrical, Computer and Biomedical Engineering
@@ -33,5 +36,7 @@ preferred-citation:
       given-names: Shayan
     - family-names: Adeli
       given-names: Behtom
+    - family-names: Norouzi
+      given-names: Maryam
     - family-names: Besio
       given-names: Walter G.
