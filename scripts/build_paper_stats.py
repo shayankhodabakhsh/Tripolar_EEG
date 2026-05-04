@@ -69,7 +69,7 @@ QC_KW = dict(
 )
 
 
-def median_with_bca(values, n_boot=1000, seed=0):
+def median_with_bca(values, n_boot=10000, seed=0):
     """Median + BCa 95% CI. Returns (median, lo, hi, n)."""
     v = np.asarray(values, dtype=float)
     v = v[~np.isnan(v)]
@@ -216,10 +216,14 @@ def main():
         else:
             md.append(f"| {metric} | {c['n_a']} | {c['n_b']} | {c['stat']:.1f} | {c['p']:.3f} | {c['d']:.2f} |\n")
 
-    md.append("\n## All Mann–Whitney comparisons\n")
-    md.append("| Contrast | n_a | n_b | U | p | Cohen d |\n|--|--|--|--|--|--|\n")
+    md.append("\n## All cross-construction comparisons\n")
+    md.append("Within-setup contrasts (paired by subject) use Wilcoxon signed-rank "
+              "with Cohen's $d_z$; between-setup contrasts use Mann--Whitney U with "
+              "Cohen's $d$.\n\n")
+    md.append("| Contrast | Test | n_a | n_b | stat | p | d / d_z |\n|--|--|--|--|--|--|--|\n")
     for label, c in comparisons.items():
-        md.append(f"| {label} | {c['n_a']} | {c['n_b']} | {c['stat']:.1f} | {c['p']:.3f} | {c['d']:.2f} |\n")
+        md.append(f"| {label} | {c.get('test', '?')} | {c['n_a']} | {c['n_b']} | "
+                  f"{c['stat']:.1f} | {c['p']:.3f} | {c['d']:.2f} |\n")
 
     OUT_MD.write_text("".join(md))
     print(f"\nWrote {OUT_MD.relative_to(REPO_ROOT)}")

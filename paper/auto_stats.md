@@ -12,13 +12,13 @@ Source: `scripts/build_paper_stats.py` on the pooled-felt cohort (felt = long + 
 ## §3.2–§3.5 Per-class medians (BCa 95% CI)
 | Class | Alpha SNR (dB) | Reactivity (closed/open) | SSIM |
 |--|--|--|--|
-| Felt tEEG | 1.72 [0.93, 2.31] (n=10) | 1.49 [1.10, 1.87] (n=10) | 0.307 [0.284, 0.347] (n=10) |
+| Felt tEEG | 1.72 [0.93, 2.31] (n=10) | 1.49 [1.10, 1.87] (n=10) | 0.307 [0.266, 0.338] (n=10) |
 | Gel tEEG | 1.43 [0.19, 3.42] (n=13) | 3.63 [1.64, 5.32] (n=13) | 0.519 [0.470, 0.694] (n=13) |
-| Paste tEEG | 2.97 [1.75, 5.65] (n=23) | 3.43 [2.30, 5.79] (n=23) | 0.710 [0.628, 0.758] (n=23) |
-| Felt eEEG | 1.75 [0.98, 2.35] (n=10) | 1.42 [0.70, 4.63] (n=10) | 0.307 [0.284, 0.347] (n=10) |
+| Paste tEEG | 2.97 [2.09, 5.65] (n=23) | 3.43 [2.30, 6.88] (n=23) | 0.710 [0.619, 0.758] (n=23) |
+| Felt eEEG | 1.75 [0.98, 2.35] (n=10) | 1.42 [0.70, 4.63] (n=10) | 0.307 [0.266, 0.338] (n=10) |
 | Gel eEEG | 2.11 [1.03, 5.35] (n=13) | 4.72 [1.97, 12.16] (n=13) | 0.519 [0.470, 0.694] (n=13) |
-| Paste eEEG | 3.24 [2.65, 6.54] (n=23) | 3.26 [2.36, 5.64] (n=23) | 0.710 [0.628, 0.758] (n=23) |
-| Disc EEG | 4.33 [2.85, 7.03] (n=23) | 4.72 [2.41, 8.62] (n=23) | n/a |
+| Paste eEEG | 3.24 [2.65, 6.54] (n=23) | 3.26 [2.36, 8.16] (n=23) | 0.710 [0.619, 0.758] (n=23) |
+| Disc EEG | 4.33 [2.91, 6.99] (n=23) | 4.72 [2.41, 8.62] (n=23) | n/a |
 
 ## §3.3 Reactivity > 1 (Berger effect detected) per class
 | Class | n with reactivity > 1 | n total |
@@ -41,15 +41,24 @@ Source: `scripts/build_paper_stats.py` on the pooled-felt cohort (felt = long + 
 ## All Mann–Whitney comparisons
 | Contrast | n_a | n_b | U | p | Cohen d |
 |--|--|--|--|--|--|
-| Felt_tEEG_vs_Paste_tEEG_alpha_snr | 10 | 10 | 13.0 | 0.006 | -1.58 |
-| Felt_tEEG_vs_Paste_tEEG_alpha_reactivity | 10 | 10 | 27.0 | 0.089 | -0.76 |
-| Felt_tEEG_vs_Paste_tEEG_ssim | 10 | 10 | 9.0 | 0.002 | -2.69 |
-| Gel_tEEG_vs_Paste_tEEG_alpha_snr | 13 | 13 | 68.0 | 0.412 | -0.44 |
-| Gel_tEEG_vs_Paste_tEEG_alpha_reactivity | 13 | 13 | 62.0 | 0.259 | -0.52 |
-| Gel_tEEG_vs_Paste_tEEG_ssim | 13 | 13 | 49.0 | 0.073 | -0.69 |
+| Felt_tEEG_vs_Paste_tEEG_alpha_snr | 10 | 10 | 1.0 | 0.004 | -1.34 |
+| Felt_tEEG_vs_Paste_tEEG_alpha_reactivity | 10 | 10 | 5.0 | 0.020 | -0.58 |
+| Felt_tEEG_vs_Paste_tEEG_ssim | 10 | 10 | 1.0 | 0.004 | -1.95 |
+| Gel_tEEG_vs_Paste_tEEG_alpha_snr | 13 | 13 | 25.0 | 0.168 | -0.41 |
+| Gel_tEEG_vs_Paste_tEEG_alpha_reactivity | 13 | 13 | 23.0 | 0.127 | -0.43 |
+| Gel_tEEG_vs_Paste_tEEG_ssim | 13 | 13 | 7.0 | 0.005 | -1.03 |
+| Felt_eEEG_vs_Paste_eEEG_alpha_snr | 10 | 10 | 8.0 | 0.049 | -0.76 |
+| Felt_eEEG_vs_Paste_eEEG_alpha_reactivity | 10 | 10 | 14.0 | 0.193 | -0.38 |
+| Felt_eEEG_vs_Paste_eEEG_ssim | 10 | 10 | 1.0 | 0.004 | -1.95 |
+| Gel_eEEG_vs_Paste_eEEG_alpha_snr | 13 | 13 | 19.0 | 0.068 | -0.53 |
+| Gel_eEEG_vs_Paste_eEEG_alpha_reactivity | 13 | 13 | 32.0 | 0.376 | -0.28 |
+| Gel_eEEG_vs_Paste_eEEG_ssim | 13 | 13 | 7.0 | 0.005 | -1.03 |
 | Felt_tEEG_vs_Gel_tEEG_alpha_snr | 10 | 13 | 68.0 | 0.877 | -0.00 |
 | Felt_tEEG_vs_Gel_tEEG_alpha_reactivity | 10 | 13 | 26.0 | 0.017 | -1.11 |
 | Felt_tEEG_vs_Gel_tEEG_ssim | 10 | 13 | 0.0 | 0.000 | -2.52 |
+| Felt_eEEG_vs_Gel_eEEG_alpha_snr | 10 | 13 | 50.0 | 0.369 | -0.58 |
+| Felt_eEEG_vs_Gel_eEEG_alpha_reactivity | 10 | 13 | 34.0 | 0.059 | -0.81 |
+| Felt_eEEG_vs_Gel_eEEG_ssim | 10 | 13 | 0.0 | 0.000 | -2.52 |
 | Paste_bridge_felt_vs_gel_alpha_snr | 10 | 13 | 89.0 | 0.145 | 0.51 |
 | Paste_bridge_felt_vs_gel_alpha_reactivity | 10 | 13 | 46.0 | 0.251 | -0.39 |
 | Paste_bridge_felt_vs_gel_ssim | 10 | 13 | 69.0 | 0.828 | 0.01 |

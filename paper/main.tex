@@ -38,7 +38,7 @@
 \usepackage{titlesec}
 \usepackage{authblk}
 \usepackage{textgreek}
-\providecommand{\upmu}{\textmu}                % \upmu fallback for V/bit etc.
+\providecommand{\upmu}{\ensuremath{\mu}}        % \upmu fallback for V/bit (works in math+text)
 \hypersetup{colorlinks=true, linkcolor=black, citecolor=blue, urlcolor=blue}
 \setlist[itemize]{leftmargin=1.4em, itemsep=2pt, topsep=4pt}
 \setlist[enumerate]{leftmargin=1.6em, itemsep=2pt, topsep=4pt}
@@ -134,7 +134,7 @@ $^{1}$ \quad Department of Electrical, Computer and Biomedical Engineering, Univ
 \corres{Correspondence: skhodabakhsh@uri.edu}
 
 %-------------------------------------------------------------------------------
-\abstract{Tripolar concentric ring electrodes (TCREs) provide an on-board surface-Laplacian derivation alongside a conventional outer-ring recording, but published TCRE studies use different electrode constructions (saline-soaked felt, conductive gel, paste) and different processing pipelines, which makes cross-study performance claims difficult to interpret. We report a pilot, methods-harmonized comparison of three TCRE constructions recorded in two acquisition setups: a saline-soaked-felt setup ($n=10$ subjects, comprising 3 long-felt and 7 short-felt sessions that pass objective signal-quality QC), a conductive-gel setup ($n=13$ subjects), and a paste TCRE present in both setups that serves as a cross-setup bridge. All recordings are processed through a single, deliberately minimal pipeline (60~Hz notch and zero-phase FIR 0.05--55~Hz bandpass) and evaluated with scale-invariant endpoints: alpha-band signal-to-noise ratio, eyes-closed/eyes-open alpha reactivity, and spectrogram structural similarity (SSIM) between paired Laplacian (tEEG) and conventional (eEEG) channels. Visual evoked potentials (VEPs) are reported only for the felt setup, because the gel-cohort acquisition produced unreliable evoked responses under the harmonized pipeline. Subject is the unit of analysis; between-construction differences are tested with the Mann--Whitney U test and reported with bootstrap BCa confidence intervals on medians. Across constructions, alpha-band detection and reactivity are physiologically plausible (the Berger effect is detected on Paste tEEG in 21/23, Gel tEEG in 13/13, and Felt tEEG in 10/10 subjects), the paste-TCRE cross-setup bridge yields no significant between-setup differences (Mann--Whitney $p\geq 0.15$ on all three endpoints), and tEEG and eEEG channels carry structurally distinct spectral content (per-class median SSIM 0.31--0.71, all below 0.8) rather than a simple amplitude rescaling. Felt-tEEG vs.\ Gel-tEEG SSIM differs strongly across constructions ($U=0$, $p<0.001$, $d=-2.52$), suggesting that the saline-felt and conductive-gel constructions produce structurally different Laplacian-vs-conventional contrasts despite identical hardware geometry. We frame all conclusions as descriptive given the pilot-scale cohort. Both cohorts use the same hardware Laplacian on TCREs of identical ring geometry, so the cross-construction contrast is on electrolyte and coupling rather than on the Laplacian estimator itself.}
+\abstract{Tripolar concentric ring electrodes (TCREs) provide an on-board surface-Laplacian derivation (tEEG) alongside a conventional outer-ring recording (eEEG). Published TCRE studies use different constructions---saline-soaked felt, conductive gel, paste---and different processing pipelines, which makes cross-study comparisons difficult. We report a pilot, methods-harmonized comparison of three TCRE constructions across two acquisition setups: a saline-soaked-felt setup ($n=10$), a conductive-gel setup ($n=13$), and a paste TCRE present in both setups as a cross-setup bridge. Both setups use the same hardware Laplacian on TCREs of identical ring geometry, so the cross-construction contrast is on electrolyte and coupling rather than on the Laplacian estimator. All recordings pass through a single minimal pipeline (60~Hz notch; zero-phase FIR 0.05--55~Hz bandpass) and are evaluated on scale-invariant endpoints: alpha-band SNR, eyes-closed/eyes-open reactivity, and tEEG--eEEG spectrogram SSIM. The Berger effect is detected on Paste tEEG in 21/23, Gel tEEG in 13/13, and Felt tEEG in 10/10 subjects. tEEG--eEEG SSIM shows a strong construction effect (Felt $0.31 <$ Gel $0.52 <$ Paste $0.71$; Felt-tEEG vs.\ Gel-tEEG $U=0$, $p<0.001$, $d=-2.52$). The paste-TCRE bridge yields no detected between-setup differences. Conclusions are descriptive given the pilot-scale cohort.}
 
 \keyword{tripolar concentric ring electrode; surface Laplacian; EEG; alpha rhythm; visual evoked potential; methods harmonization; electrolyte; signal quality}
 
@@ -175,7 +175,7 @@ The framing throughout is descriptive and pilot-grade: cohort sizes are small, s
 The cohort comprises three TCRE construction classes recorded across two acquisition setups (Table~\ref{tab:cohort}).
 
 \begin{itemize}
-\item \textbf{Felt setup} (URI lab, 2026). Eleven-channel BrainVision recording at 1000~Hz: four felt TCREs (channels 1--8, alternating tEEG/eEEG), one paste TCRE (channels 9--10), and a paste conventional disc (channel 11). Cohort: all felt sessions (long and short) that pass objective per-subject signal-quality QC (Section~\ref{sec:qc}). The long-vs-short sub-cohort split is reported in Section~\ref{sec:cohort_qc}; supplement Section~S6 confirms the construction-level conclusions hold within each sub-cohort.
+\item \textbf{Felt setup} (URI lab, 2026). Eleven-channel BrainVision recording at 1000~Hz: four felt TCREs (channels 1--8, alternating tEEG/eEEG), one paste TCRE (channels 9--10), and a paste conventional disc (channel 11). Cohort: all felt sessions (long and short) that pass objective per-subject signal-quality QC (Section~\ref{sec:qc}). Felt sessions are split into two physical sub-cohorts by the screw used to seat the TCRE in its 3D-printed housing: \emph{long-felt} (LF) sessions use the longer-screw housing that allows for a thicker saline-soaked felt pad and a longer recording, and \emph{short-felt} (SF) sessions use the shorter-screw housing. Both sub-cohorts are pooled for the primary analyses in Section~\ref{sec:cohort_qc}--§3.6; supplement Section~S6 confirms that the construction-level conclusions hold within each sub-cohort.
 \item \textbf{Gel setup} (URI lab, October--November 2024). Seven-channel BrainVision recording at 1000~Hz: two gel TCREs at O1 and O2 (channels 1--4), one paste TCRE at Pz (channels 5--6), and a conventional disc at Pz (channel 7). Cohort: all gel subjects discoverable under the project gel directory that pass per-subject QC (Section~\ref{sec:qc}).
 \item \textbf{Paste TCRE bridge.} Paste TCRE is present in both setups and serves as the cross-setup comparability check.
 \end{itemize}
@@ -183,7 +183,7 @@ The cohort comprises three TCRE construction classes recorded across two acquisi
 All sessions were recorded under a checkerboard-VEP plus eyes-open/eyes-closed paradigm. The eyes-open/closed protocol follows~\cite{kirschfeld2005}.
 
 \begin{table}[H]
-\caption{Cohort summary by acquisition setup. Subject counts are post-QC. Auto-generated by \texttt{paper\_sensors/build\_paper\_stats.py}; re-run if the cohort or QC thresholds change.}
+\caption{Cohort summary by acquisition setup. Subject counts are post-QC.}
 \label{tab:cohort}
 \begin{tabular}{lccc}
 \toprule
@@ -241,7 +241,7 @@ We report only \emph{scale-invariant} endpoints in the main cross-construction c
 
 \subsection{Statistical Analysis}
 
-Subject is the unit of analysis. For each metric we aggregate per subject and per channel class (FELT\_TEEG, GEL\_TEEG, PASTE\_TEEG, FELT\_EEEG, GEL\_EEEG, PASTE\_EEEG, DISC). Between-construction comparisons use the two-sided Mann--Whitney U test. Central tendency is reported as the median with bootstrap BCa 95\% confidence intervals (1000 resamples). No parametric tests are applied to the $n=2$ Long Felt cohort. We report effect sizes and CIs alongside $p$-values; no adjustments for multiple comparisons are made because the analysis is descriptive.
+Subject is the unit of analysis. For each metric we aggregate per subject and per channel class (FELT\_TEEG, GEL\_TEEG, PASTE\_TEEG, FELT\_EEEG, GEL\_EEEG, PASTE\_EEEG, DISC). Within-setup, cross-construction comparisons (e.g.\ Felt-tEEG vs.\ Paste-tEEG within the felt cohort, or Gel-tEEG vs.\ Paste-tEEG within the gel cohort) are paired by subject because both constructions are recorded simultaneously on the same head-cap; these are tested with the two-sided Wilcoxon signed-rank test, with Cohen's $d_z$ and the matched-pairs rank-biserial correlation $r$ as effect sizes. Between-setup comparisons (Felt-tEEG vs.\ Gel-tEEG; paste-TCRE in the felt setup vs.\ in the gel setup) are independent samples and are tested with the two-sided Mann--Whitney U test with Cohen's $d$. Central tendency is reported as the median with bootstrap BCa 95\% confidence intervals (10{,}000 resamples). We report effect sizes and confidence intervals alongside $p$-values; no adjustments for multiple comparisons are made because the analysis is descriptive and the endpoints are pre-specified.
 
 %-------------------------------------------------------------------------------
 \section{Results}
@@ -250,7 +250,7 @@ Subject is the unit of analysis. For each metric we aggregate per subject and pe
 The QC pipeline assigns each subject a three-tier status: \textbf{PASS} when no flags trigger, \textbf{WARN} when exactly one soft flag triggers (clipping in $(2,5]\%$ or mean tEEG alpha SNR in $[-1,0)$~dB), and \textbf{FAIL} (subject excluded) when any hard threshold is breached (clipping $>5\%$, SNR $<-1$~dB, fewer than two epochs of either condition, or two simultaneous WARN flags). Per-channel ADC clipping above $5\%$ excludes only the affected channel from group statistics; the rest of the recording is retained. After QC, the analysis cohort comprises 10 felt subjects (3 long-felt and 7 short-felt) and 13 gel subjects (Table~\ref{tab:qc}).
 
 \begin{table}[H]
-\caption{Per-subject QC outcomes (auto-generated by \texttt{build\_paper\_stats.py}). Subjects are de-identified with cohort-prefixed codes (LF = long felt; SF = short felt; G = gel) assigned alphabetically by raw recording name. Status: PASS if no flags trigger; WARN if exactly one soft flag triggers (clip $2$--$5$\%, or mean tEEG SNR in $[-1,0)$~dB). ``Clip\%'' is the fraction of samples at the INT16 ADC rail across all channels.}
+\caption{Per-subject QC outcomes. Subjects are de-identified with cohort-prefixed codes (LF = long felt; SF = short felt; G = gel) assigned alphabetically by raw recording name. Status: PASS if no flags trigger; WARN if exactly one soft flag triggers (clip $2$--$5$\%, or mean tEEG SNR in $[-1,0)$~dB); FAIL if any hard threshold is breached (clip $>5\%$, SNR $<-1$~dB, $<2$ epochs of either condition, or two simultaneous WARN flags).}
 \label{tab:qc}
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -290,7 +290,7 @@ Gel & G13 & 7 & 518 & 3 / 3 & $-0.0$ & WARN (SNR$<0$) \\
 \end{table}
 
 \subsection{Alpha-Band Detection (SNR)}
-Figure~\ref{fig:alpha_snr} shows alpha-band SNR by electrode class. Per-class median (BCa 95\% CI): Felt tEEG $1.72$~dB $[0.93,\ 2.31]$ ($n=10$); Gel tEEG $1.43$~dB $[0.19,\ 3.42]$ ($n=13$); Paste tEEG $2.97$~dB $[1.75,\ 5.65]$ ($n=23$); Disc $4.33$~dB $[2.85,\ 7.03]$ ($n=23$). Felt-tEEG vs Paste-tEEG within the felt setup: $U=13$, $p=0.006$, $d=-1.58$ ($n_a=n_b=10$). Gel-tEEG vs Paste-tEEG within the gel setup: $U=68$, $p=0.41$, $d=-0.44$ ($n_a=n_b=13$). Felt-tEEG vs Gel-tEEG: $U=68$, $p=0.88$, $d=-0.00$ ($n_a=10$, $n_b=13$). Alpha is detectable above neighboring bands across all classes, consistent with physiologically plausible posterior alpha during the eyes-closed condition; paste-TCRE alpha SNR is the highest of the three constructions, with Felt and Gel tEEG broadly comparable.
+Figure~\ref{fig:alpha_snr} shows alpha-band SNR by electrode class. Per-class median (BCa 95\% CI): Felt tEEG $1.72$~dB $[0.93,\ 2.31]$ ($n=10$); Gel tEEG $1.43$~dB $[0.19,\ 3.42]$ ($n=13$); Paste tEEG $2.97$~dB $[2.09,\ 5.65]$ ($n=23$); Disc $4.33$~dB $[2.91,\ 6.99]$ ($n=23$). Within-setup paired contrasts (Wilcoxon signed-rank): Felt-tEEG vs Paste-tEEG, $W=1$, $p=0.004$, $d_z=-1.34$ ($n_{\mathrm{pairs}}=10$); Gel-tEEG vs Paste-tEEG, $W=25$, $p=0.17$, $d_z=-0.41$ ($n_{\mathrm{pairs}}=13$). Between-setup independent contrast (Mann--Whitney U): Felt-tEEG vs Gel-tEEG, $U=68$, $p=0.88$, $d=-0.00$ ($n_a=10$, $n_b=13$). Alpha is detectable above neighboring bands across all classes, consistent with physiologically plausible posterior alpha during the eyes-closed condition; paste-TCRE alpha SNR is the highest of the three constructions, with Felt and Gel tEEG broadly comparable.
 
 \begin{figure}[H]
 \centering
@@ -300,7 +300,11 @@ Figure~\ref{fig:alpha_snr} shows alpha-band SNR by electrode class. Per-class me
 \end{figure}
 
 \subsection{Eyes-Closed/Eyes-Open Reactivity}
-Figure~\ref{fig:reactivity} shows alpha reactivity (closed/open ratio). Values $>1$ indicate the Berger effect~\cite{kirschfeld2005}. Per-class median (BCa 95\% CI): Felt tEEG $1.49$ $[1.10,\ 1.87]$ ($n=10$); Gel tEEG $3.63$ $[1.64,\ 5.32]$ ($n=13$); Paste tEEG $3.43$ $[2.30,\ 5.79]$ ($n=23$); Disc $4.72$ $[2.41,\ 8.62]$ ($n=23$). The Berger effect (reactivity $>1$) is detected on Felt tEEG in 10/10 subjects, Gel tEEG in 13/13, and Paste tEEG in 21/23. Felt-tEEG vs Gel-tEEG: $U=26$, $p=0.017$, $d=-1.11$ --- gel reactivity exceeds felt reactivity by a notable margin. Gel-tEEG vs Paste-tEEG: $U=62$, $p=0.26$, $d=-0.52$.
+Figure~\ref{fig:reactivity} shows alpha reactivity (closed/open ratio). Values $>1$ indicate the Berger effect~\cite{kirschfeld2005}. Per-class median (BCa 95\% CI): Felt tEEG $1.49$ $[1.10,\ 1.87]$ ($n=10$); Gel tEEG $3.63$ $[1.64,\ 5.32]$ ($n=13$); Paste tEEG $3.43$ $[2.30,\ 6.88]$ ($n=23$); Disc $4.72$ $[2.41,\ 8.62]$ ($n=23$). The Berger effect (reactivity $>1$) is detected on Felt tEEG in 10/10 subjects, Gel tEEG in 13/13, and Paste tEEG in 21/23. Between-setup (Mann--Whitney U) Felt-tEEG vs Gel-tEEG: $U=26$, $p=0.017$, $d=-1.11$ --- gel reactivity exceeds felt reactivity by a notable margin. Within-setup paired (Wilcoxon signed-rank) Felt-tEEG vs Paste-tEEG: $W=5$, $p=0.020$, $d_z=-0.58$ ($n_{\mathrm{pairs}}=10$); Gel-tEEG vs Paste-tEEG: $W=23$, $p=0.13$, $d_z=-0.43$ ($n_{\mathrm{pairs}}=13$).
+
+The two paste-tEEG subjects with reactivity $\leq 1$ are SF02 (paste-tEEG reactivity 0.96; disc 5.00; felt-tEEG 1.67) and SF03 (paste-tEEG reactivity 0.88; disc 0.96; felt-tEEG 1.10). For SF03 the attenuated Berger response is consistent across all three derivations and reads as a subject-level effect. For SF02 the non-response is confined to the paste-tEEG channel while disc and felt-tEEG channels show the expected modulation, which is more consistent with a placement-level issue on the paste TCRE during that session; SF02 also carries a $3.3\%$ ADC-clip WARN flag (Table~\ref{tab:qc}). We retain both subjects in the cohort and flag the non-response transparently rather than dropping them.
+
+The Felt-tEEG reactivity median (1.49) is notably lower than the Gel-tEEG median (3.63). Three non-exclusive factors plausibly contribute. (i) ADC clipping is concentrated in the felt cohort: four of ten felt sessions (LF02, SF01, SF02, SF07; Table~\ref{tab:qc}) carry a clip-percentage WARN flag, and the rail-clipping event most commonly occurs on high-amplitude eyes-closed segments where it depresses measured $P_{\alpha,\mathrm{closed}}$. (ii) The eyes-closed/eyes-open epoch counts are smaller in the felt cohort (median 4 / 3 epochs vs.\ median 3 / 3 in the gel cohort, with the gel cohort sometimes recording only $2/2$), and the closed-condition power estimate is correspondingly noisier on a per-subject basis. (iii) A residual construction effect cannot be excluded: saline coupling may attenuate posterior alpha at the scalp through its broader and lower-impedance footprint. We retain the Felt-tEEG cohort in the main analysis because the Berger effect (reactivity $>1$) is detected in 10/10 felt subjects, but read the absolute reactivity \emph{magnitude} as confounded with acquisition quality and not as a clean construction-level number.
 
 \begin{figure}[H]
 \centering
@@ -327,7 +331,7 @@ Figure~\ref{fig:open_closed_psd} shows the per-class normalized PSDs for eyes-op
 \end{figure}
 
 \subsection{Spectrogram SSIM Between Paired tEEG and eEEG}
-Figure~\ref{fig:ssim} reports the per-pair SSIM between tEEG and eEEG spectrograms. SSIM is bounded in $[0,1]$ and is dimensionless, so values are directly comparable across the two acquisition setups. Per-class median (BCa 95\% CI): Felt $0.307$ $[0.284,\ 0.347]$ ($n=10$); Gel $0.519$ $[0.470,\ 0.694]$ ($n=13$); Paste $0.710$ $[0.628,\ 0.758]$ ($n=23$). All three constructions cluster well below the 0.8 conventional ``high-similarity'' threshold, supporting the interpretation that tEEG and eEEG are not simply scaled copies of each other. The construction effect on tEEG--eEEG SSIM is strong across the cohort: Felt-tEEG vs Gel-tEEG SSIM differs at $U=0$, $p<0.001$, $d=-2.52$ ($n_a=10$, $n_b=13$), and Felt vs Paste at $U=9$, $p=0.002$, $d=-2.69$ ($n_a=n_b=10$); Gel vs Paste shows the same direction but does not reach significance ($U=49$, $p=0.073$, $d=-0.69$). The ordering Felt $<$ Gel $<$ Paste is consistent with felt's saline-soaked construction producing the largest spatial-filter contrast between Laplacian and conventional derivations, and paste producing the smallest.
+Figure~\ref{fig:ssim} reports the per-pair SSIM between tEEG and eEEG spectrograms. SSIM is bounded in $[0,1]$ and is dimensionless, so values are directly comparable across the two acquisition setups. Per-class median (BCa 95\% CI): Felt $0.307$ $[0.266,\ 0.338]$ ($n=10$); Gel $0.519$ $[0.470,\ 0.694]$ ($n=13$); Paste $0.710$ $[0.619,\ 0.758]$ ($n=23$). All three constructions cluster well below the 0.8 conventional ``high-similarity'' threshold, supporting the interpretation that tEEG and eEEG are not simply scaled copies of each other. The construction effect on tEEG--eEEG SSIM is strong across the cohort: between-setup, Felt-tEEG vs Gel-tEEG differs at $U=0$, $p<0.001$, $d=-2.52$ ($n_a=10$, $n_b=13$, Mann--Whitney). Within-setup paired contrasts (Wilcoxon signed-rank) confirm the same ordering: Felt vs Paste, $W=1$, $p=0.004$, $d_z=-1.95$ ($n_{\mathrm{pairs}}=10$); Gel vs Paste, $W=7$, $p=0.005$, $d_z=-1.03$ ($n_{\mathrm{pairs}}=13$). The ordering Felt $<$ Gel $<$ Paste is consistent across all three contrasts.
 
 \begin{figure}[H]
 \centering
@@ -341,7 +345,7 @@ Figure~\ref{fig:ssim} reports the per-pair SSIM between tEEG and eEEG spectrogra
 \end{figure}
 
 \subsection{Paste-TCRE Cross-Setup Bridge}
-Because the paste TCRE is present in both setups, between-setup differences in its behavior estimate the residual cross-setup variance not attributable to construction. Figure~\ref{fig:paste_bridge} shows paste-TCRE metrics in the felt setup vs.\ the gel setup. None of the three Mann--Whitney comparisons reach significance (alpha SNR: $U=89$, $p=0.15$, $d=+0.51$; reactivity: $U=46$, $p=0.25$, $d=-0.39$; SSIM: $U=69$, $p=0.83$, $d=+0.01$; $n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$). The bridge is now reasonably powered ($n=10$ paste-TCRE observations from the felt setup) and the absence of between-setup paste differences is consistent with cross-setup comparability of construction-level effects.
+Because the paste TCRE is present in both setups, between-setup differences in its behavior estimate the residual cross-setup variance not attributable to construction. Figure~\ref{fig:paste_bridge} shows paste-TCRE metrics in the felt setup vs.\ the gel setup. None of the three Mann--Whitney comparisons reach significance (alpha SNR: $U=89$, $p=0.15$, $d=+0.51$; reactivity: $U=46$, $p=0.25$, $d=-0.39$; SSIM: $U=69$, $p=0.83$, $d=+0.01$; $n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$). With these sample sizes the bridge has approximately 60\% power to detect a Cohen's $d$ of $0.8$ at $\alpha=0.05$; smaller between-setup effects cannot be ruled out. The point estimates do not, however, reproduce the magnitude or direction of the cross-construction contrasts in §\ref{sec:cohort_qc}--§3.5 (most notably the very large Felt vs Gel SSIM effect of $d=-2.52$), which supports the interpretation that the construction-level effects reported here are not driven primarily by between-setup acquisition differences.
 
 \begin{figure}[H]
 \centering
@@ -351,7 +355,7 @@ Because the paste TCRE is present in both setups, between-setup differences in i
 \end{figure}
 
 \subsection{Visual Evoked Potentials (Felt Setup Only)}\label{sec:vep_scope}
-VEPs are reported only for the long-felt subjects LF02 and LF03 in the Felt setup. Figure~\ref{fig:felt_vep} shows the per-subject grand averages over the felt-tEEG (channel-mean of TCRE \#1--\#4 tEEG), paste-tEEG, and paste-disc derivations, with N75 / P100 / N135 markers placed at the canonical-window extrema (Table~\ref{tab:felt_vep}). On LF03 the paste-tEEG channel produces a clearly recognisable P100 of $\approx 41\ \upmu$V at 140~ms with matching morphology on the disc at $\approx 4\ \upmu$V; the felt-tEEG mean is dominated by the impedance-affected channels and does not produce a clean P100 in the same window. LF02 shows large-amplitude felt-tEEG excursions consistent with the high-impedance / clipping flag on that recording (Table~\ref{tab:qc}), while the paste-tEEG and disc traces still produce a detectable $\approx 109$~ms / $17\ \upmu$V P100 on paste-tEEG and a small but matching disc deflection. Peak-finding here is the simple within-window extremum search documented in \texttt{scripts/build\_felt\_vep\_figure.py}; latencies that land at a window boundary (e.g.\ 50~ms or 140~ms) indicate that the canonical N75/P100/N135 morphology is approximate rather than fully resolved on those channels and should not be over-interpreted from $n=2$.
+VEPs are reported as a qualitative check on the felt setup; the section is intentionally limited to the two long-felt subjects whose pre-averaged checkerboard responses are available (LF02 and LF03). Figure~\ref{fig:felt_vep} shows the per-subject grand averages over the felt-tEEG (channel-mean of TCRE \#1--\#4 tEEG), paste-tEEG, and paste-disc derivations, with N75 / P100 / N135 markers placed at the canonical-window extrema (Table~\ref{tab:felt_vep}). The cleanest morphology in the cohort is on LF02 paste-tEEG, with a resolved P100 at 109~ms ($\approx 17\ \upmu$V) flanked by a 71~ms N75 and a 132~ms N135; the disc on the same subject produces a small but matching deflection. On LF03 the paste-tEEG channel shows a large positive deflection at $\approx 41\ \upmu$V near 140~ms, but because this latency is at the upper boundary of the canonical P100 window we do not report it as a resolved P100; the broader morphology suggests a delayed or atypically-shaped positivity that is more compatible with a P100/N135 fusion than with a textbook P100. LF02 felt-tEEG amplitudes are noise-dominated because the felt-tEEG channel mean is contaminated by the clipping flagged in Table~\ref{tab:qc}; we retain the row in Table~\ref{tab:felt_vep} for transparency only. Peak-finding here is the simple within-window extremum search documented in \texttt{scripts/build\_felt\_vep\_figure.py}; latencies that would otherwise pin at a window boundary (50, 125, or 140~ms) are reported as ``n.r.'' (not resolved) rather than as numerical peaks. With $n=2$ usable VEP recordings, this section is hypothesis-generating and should not be read as a quantitative VEP comparison; an expanded VEP cohort under the harmonized pipeline is left for future work.
 
 The gel cohort is excluded from cross-construction VEP statistics because the gel-era acquisition produced unreliable evoked responses when re-processed under the harmonized pipeline. We document the gel-VEP behaviour qualitatively in Section~\ref{sec:gel_vep_sanity} so that the exclusion is auditable; the underlying cause (amplifier configuration during the gel collection campaign vs.\ residual pipeline differences) is currently under review with the original gel-TCRE operator.
 
@@ -367,22 +371,24 @@ The gel cohort is excluded from cross-construction VEP statistics because the ge
 \end{figure}
 
 \begin{table}[H]
-\caption{Per-subject VEP latencies (ms) and amplitudes ($\upmu$V) on the felt-tEEG channel-mean, paste-tEEG, and disc. Subject IDs follow the de-identified codes in Table~\ref{tab:qc}. Latencies pinned at a window boundary (50, 140, 125~ms) indicate the canonical peak is not resolved within the canonical window; treat as approximate. Auto-generated by \texttt{build\_felt\_vep\_figure.py}.}
+\caption{Per-subject VEP latencies (ms) and amplitudes ($\upmu$V) on the felt-tEEG channel-mean, paste-tEEG, and disc. Subject IDs follow the de-identified codes in Table~\ref{tab:qc}. Latencies that would otherwise pin at a canonical-window boundary (50, 140, or 125~ms) are reported as ``n.r.'' (not resolved) because they indicate the peak-finder returned the within-window extremum rather than a true local extremum. The LF02 felt-tEEG row is shown in grey because the felt-tEEG mean on that subject is dominated by a clipped/high-impedance channel (Table~\ref{tab:qc}) and the values are noise-dominated; we retain the row for transparency rather than for interpretation. Resolved peaks are reported numerically.}
 \label{tab:felt_vep}
 \centering\small
 \begin{tabular}{llcccccc}
 \toprule
 \textbf{ID} & \textbf{Channel} & \textbf{N75 lat} & \textbf{N75 amp} & \textbf{P100 lat} & \textbf{P100 amp} & \textbf{N135 lat} & \textbf{N135 amp} \\
 \midrule
-LF03 & Felt tEEG  & 50.0  & $-1.7$  & 140.0 & $+48.0$ & 125.0 & $+12.5$ \\
-LF03 & Paste tEEG & 50.0  & $+10.9$ & 140.0 & $+41.0$ & 126.0 & $+22.1$ \\
-LF03 & Disc       & 50.0  & $+0.2$  & 140.0 & $+3.9$  & 125.0 & $+0.4$  \\
+LF03 & Felt tEEG  & n.r.\ & $-1.7$  & n.r.\ & $+48.0$ & n.r.\ & $+12.5$ \\
+LF03 & Paste tEEG & n.r.\ & $+10.9$ & n.r.\ & $+41.0$ & 126.0 & $+22.1$ \\
+LF03 & Disc       & n.r.\ & $+0.2$  & n.r.\ & $+3.9$  & n.r.\ & $+0.4$  \\
 \midrule
-LF02 & Felt tEEG  & 59.0  & $-56.0$ & 140.0 & $-23.3$ & 125.0 & $-59.0$ \\
+LF02 & Felt tEEG\footnotemark[1] & 59.0 & $-56.0$ & n.r.\ & $-23.3$ & n.r.\ & $-59.0$ \\
 LF02 & Paste tEEG & 71.0  & $-7.4$  & 109.0 & $+17.3$ & 132.0 & $-19.6$ \\
-LF02 & Disc       & 59.0  & $-1.9$  & 140.0 & $+2.6$  & 125.0 & $-4.5$  \\
+LF02 & Disc       & 59.0  & $-1.9$  & n.r.\ & $+2.6$  & n.r.\ & $-4.5$  \\
 \bottomrule
 \end{tabular}
+\par\smallskip
+\footnotetext[1]{LF02 felt-tEEG values are noise-dominated because the felt-tEEG mean is contaminated by the clipped channel flagged in Table~\ref{tab:qc}; reported for transparency only.}
 \end{table}
 
 \subsection{Gel-Cohort VEP Sanity Check (Qualitative)}\label{sec:gel_vep_sanity}
@@ -432,6 +438,11 @@ The strongest contribution of this pilot is the harmonized pipeline itself. By e
 \subsection{Felt-tEEG vs.\ Gel-tEEG: Same Estimator, Same Geometry}
 Both setups use the same hardware Laplacian on TCREs of identical ring geometry, so the cross-construction contrast in §3 is on construction (electrolyte and coupling: saline-soaked felt vs.\ conductive gel vs.\ paste) rather than on estimator.
 
+A first-pass interpretation of the Felt $<$ Gel $<$ Paste SSIM ordering is that saline coupling produces the largest structural contrast between the Laplacian and conventional derivations recorded on the same TCRE. We note three caveats. First, SSIM is a similarity metric and does not by itself distinguish between two channels carrying genuinely independent neural information and two channels sharing a common neural signal but corrupted by independent noise; lower SSIM is consistent with both. Second, the alpha-SNR ordering (Paste $>$ Felt $\sim$ Gel) does not mirror the SSIM ordering, which argues against a simple ``felt is the cleanest spatial filter'' reading. Third, plausible electrolyte-level mechanisms include differential spreading of saline beyond the nominal ring footprint, effectively enlarging the outer-ring contact area; inter-ring impedance asymmetry, which would inject construction-dependent common-mode-rejection imbalances into the on-board Laplacian; and independent contact-noise contributions to each ring. Direct ring-by-ring impedance logging in future cohorts would discriminate among these. We therefore frame the SSIM ordering as a hypothesis-generating observation about electrolyte coupling rather than as a mechanistic conclusion about which construction provides better spatial filtering.
+
+\subsection{Why Disc-EEG Alpha SNR Exceeds tEEG Alpha SNR}
+Disc-EEG alpha SNR (median 4.33~dB) is higher than every tEEG class. The surface Laplacian is expected to improve focal-source detection by suppressing volume-conducted broadband activity~\cite{besio2006,koka2007}, but its action on a non-focal source attenuates the source itself: posterior alpha during the eyes-closed condition is broadly distributed across occipital cortex rather than focal, so a high-pass spatial filter rejects much of it. This is the conventional surface-Laplacian explanation for why an estimator that improves focal-source SNR can simultaneously reduce broadband-alpha SNR; we report the disc--tEEG SNR comparison for context, not as evidence against TCRE.
+
 \subsection{Limitations}
 
 \begin{itemize}
@@ -442,7 +453,7 @@ Both setups use the same hardware Laplacian on TCREs of identical ring geometry,
 \end{itemize}
 
 \subsection{What This Enables}
-For practitioners, this paper offers a single open pipeline (\texttt{src/eeg\_analysis.py}, \texttt{src/comparison\_analysis.py}) and a cross-setup bridge design that other TCRE labs can re-use to make their results readable against ours. We deliberately do not recommend one construction over another on the basis of this pilot; the contribution is the comparison framework, not a winner.
+For practitioners, this paper offers a single open pipeline and a cross-setup bridge design that other TCRE labs can re-use to make their results readable against ours. We deliberately do not recommend one construction over another on the basis of this pilot; the contribution is the comparison framework, not a winner.
 
 %-------------------------------------------------------------------------------
 \section{Conclusions}

@@ -650,94 +650,126 @@ def extract_open_closed_psd_by_type(subjects_results, nperseg=4096,
     return result
 
 
+def _paired_by_subject(type_metrics, type_a, type_b, metric):
+    """Pair observations of two electrode types by subject_name.
+
+    Returns aligned arrays (a_paired, b_paired) restricted to subjects with
+    a finite value on both types. Order follows the subject_names list.
+    """
+    if type_a not in type_metrics or type_b not in type_metrics:
+        return np.array([]), np.array([])
+    names_a = type_metrics[type_a]["subject_names"]
+    names_b = type_metrics[type_b]["subject_names"]
+    vals_a  = type_metrics[type_a][metric]
+    vals_b  = type_metrics[type_b][metric]
+    map_b = {n: vals_b[i] for i, n in enumerate(names_b)}
+    a_out, b_out = [], []
+    for i, n in enumerate(names_a):
+        if n not in map_b:
+            continue
+        a, b = vals_a[i], map_b[n]
+        if np.isnan(a) or np.isnan(b):
+            continue
+        a_out.append(a)
+        b_out.append(b)
+    return np.asarray(a_out), np.asarray(b_out)
+
+
+def _paired_effect_sizes(a, b):
+    """Cohen's d_z and matched-pairs rank-biserial r for paired data."""
+    diff = a - b
+    if diff.size < 2:
+        return float("nan"), float("nan")
+    sd = np.std(diff, ddof=1)
+    dz = float(np.mean(diff) / sd) if sd > 0 else float("nan")
+    # Matched-pairs rank-biserial r from signed ranks of nonzero diffs.
+    nz = diff[diff != 0]
+    if nz.size == 0:
+        return dz, 0.0
+    ranks = stats.rankdata(np.abs(nz))
+    pos = ranks[nz > 0].sum()
+    neg = ranks[nz < 0].sum()
+    total = pos + neg
+    r = float((pos - neg) / total) if total > 0 else float("nan")
+    return dz, r
+
+
 def compare_electrode_types(felt_subjects, gel_subjects):
     """
     Run statistical comparisons across electrode types.
 
     Uses Paste TCRE (present in both recordings) as the bridge reference.
-    Tests: Wilcoxon signed-rank for within-recording, Mann-Whitney U for
-    cross-recording comparisons.
+    Within-setup, cross-construction comparisons (e.g. Felt-tEEG vs
+    Paste-tEEG within the felt cohort) are paired by subject and tested
+    with the two-sided Wilcoxon signed-rank test, with Cohen's d_z and
+    matched-pairs rank-biserial r as effect sizes. Between-setup
+    comparisons (Felt-tEEG vs Gel-tEEG, paste bridge) are independent and
+    tested with the two-sided Mann-Whitney U test with Cohen's d.
 
     Returns:
         dict with comparison results and summary tables
     """
     all_subjects = felt_subjects + gel_subjects
-    # Use per_subject=True so each subject contributes exactly one
-    # observation per electrode type, regardless of how many channels
-    # that setup records per type.
     type_metrics = extract_type_metrics(all_subjects, per_subject=True)
-
     felt_type_metrics = extract_type_metrics(felt_subjects, per_subject=True)
     gel_type_metrics  = extract_type_metrics(gel_subjects,  per_subject=True)
 
     comparisons = {}
-    # Only ratio/scale-invariant metrics are valid for cross-setup comparison.
-    # alpha_open and alpha_closed are in µV²/Hz and are NOT comparable between
-    # Felt and Gel setups when arbitrary per-channel amplitude scaling is in
-    # effect. SNR (a band ratio), reactivity (a closed/open ratio), and SSIM
-    # (a normalised image-similarity index) are scale-invariant and remain
-    # valid for cross-setup comparison.
     metric_keys = ["alpha_snr", "alpha_reactivity", "ssim"]
 
-    # Felt tEEG vs Paste tEEG (within felt recordings)
-    for metric in metric_keys:
-        if "FELT_TEEG" in felt_type_metrics and "PASTE_TEEG" in felt_type_metrics:
-            a = felt_type_metrics["FELT_TEEG"][metric]
-            b = felt_type_metrics["PASTE_TEEG"][metric]
-            a_v = a[~np.isnan(a)]
-            b_v = b[~np.isnan(b)]
-            if len(a_v) >= 3 and len(b_v) >= 3:
-                stat, pval = stats.mannwhitneyu(a_v, b_v, alternative="two-sided")
-                comparisons[f"Felt_tEEG_vs_Paste_tEEG_{metric}"] = {
-                    "stat": stat, "p": pval, "test": "Mann-Whitney U",
-                    "d": cohens_d(a_v, b_v),
-                    "n_a": len(a_v), "n_b": len(b_v),
-                }
+    # ---------- PAIRED, within-setup ----------
+    paired_specs = [
+        ("Felt_tEEG_vs_Paste_tEEG", felt_type_metrics, "FELT_TEEG", "PASTE_TEEG"),
+        ("Gel_tEEG_vs_Paste_tEEG",  gel_type_metrics,  "GEL_TEEG",  "PASTE_TEEG"),
+        ("Felt_eEEG_vs_Paste_eEEG", felt_type_metrics, "FELT_EEEG", "PASTE_EEEG"),
+        ("Gel_eEEG_vs_Paste_eEEG",  gel_type_metrics,  "GEL_EEEG",  "PASTE_EEEG"),
+    ]
+    for label_prefix, tm, type_a, type_b in paired_specs:
+        for metric in metric_keys:
+            a_p, b_p = _paired_by_subject(tm, type_a, type_b, metric)
+            if a_p.size < 3:
+                continue
+            try:
+                stat, pval = stats.wilcoxon(a_p, b_p, zero_method="wilcox",
+                                            alternative="two-sided")
+            except ValueError:
+                # All differences zero (degenerate); skip.
+                continue
+            dz, r = _paired_effect_sizes(a_p, b_p)
+            comparisons[f"{label_prefix}_{metric}"] = {
+                "stat": float(stat), "p": float(pval),
+                "test": "Wilcoxon signed-rank",
+                "d": dz, "r_rb": r,
+                "n_a": int(a_p.size), "n_b": int(b_p.size),
+                "n_pairs": int(a_p.size),
+            }
 
-    # Gel tEEG vs Paste tEEG (within gel recordings)
-    for metric in metric_keys:
-        if "GEL_TEEG" in gel_type_metrics and "PASTE_TEEG" in gel_type_metrics:
-            a = gel_type_metrics["GEL_TEEG"][metric]
-            b = gel_type_metrics["PASTE_TEEG"][metric]
+    # ---------- INDEPENDENT, between-setup ----------
+    indep_specs = [
+        ("Felt_tEEG_vs_Gel_tEEG", felt_type_metrics, "FELT_TEEG",
+                                  gel_type_metrics,  "GEL_TEEG"),
+        ("Felt_eEEG_vs_Gel_eEEG", felt_type_metrics, "FELT_EEEG",
+                                  gel_type_metrics,  "GEL_EEEG"),
+        ("Paste_bridge_felt_vs_gel", felt_type_metrics, "PASTE_TEEG",
+                                     gel_type_metrics,  "PASTE_TEEG"),
+    ]
+    for label_prefix, tm_a, type_a, tm_b, type_b in indep_specs:
+        for metric in metric_keys:
+            if type_a not in tm_a or type_b not in tm_b:
+                continue
+            a = tm_a[type_a][metric]
+            b = tm_b[type_b][metric]
             a_v = a[~np.isnan(a)]
             b_v = b[~np.isnan(b)]
-            if len(a_v) >= 3 and len(b_v) >= 3:
-                stat, pval = stats.mannwhitneyu(a_v, b_v, alternative="two-sided")
-                comparisons[f"Gel_tEEG_vs_Paste_tEEG_{metric}"] = {
-                    "stat": stat, "p": pval, "test": "Mann-Whitney U",
-                    "d": cohens_d(a_v, b_v),
-                    "n_a": len(a_v), "n_b": len(b_v),
-                }
-
-    # Felt tEEG vs Gel tEEG (cross-recording)
-    for metric in metric_keys:
-        if "FELT_TEEG" in felt_type_metrics and "GEL_TEEG" in gel_type_metrics:
-            a = felt_type_metrics["FELT_TEEG"][metric]
-            b = gel_type_metrics["GEL_TEEG"][metric]
-            a_v = a[~np.isnan(a)]
-            b_v = b[~np.isnan(b)]
-            if len(a_v) >= 3 and len(b_v) >= 3:
-                stat, pval = stats.mannwhitneyu(a_v, b_v, alternative="two-sided")
-                comparisons[f"Felt_tEEG_vs_Gel_tEEG_{metric}"] = {
-                    "stat": stat, "p": pval, "test": "Mann-Whitney U",
-                    "d": cohens_d(a_v, b_v),
-                    "n_a": len(a_v), "n_b": len(b_v),
-                }
-
-    # Paste TCRE bridge: Felt-recording paste vs Gel-recording paste
-    for metric in metric_keys:
-        if "PASTE_TEEG" in felt_type_metrics and "PASTE_TEEG" in gel_type_metrics:
-            a = felt_type_metrics["PASTE_TEEG"][metric]
-            b = gel_type_metrics["PASTE_TEEG"][metric]
-            a_v = a[~np.isnan(a)]
-            b_v = b[~np.isnan(b)]
-            if len(a_v) >= 2 and len(b_v) >= 2:
-                stat, pval = stats.mannwhitneyu(a_v, b_v, alternative="two-sided")
-                comparisons[f"Paste_bridge_felt_vs_gel_{metric}"] = {
-                    "stat": stat, "p": pval, "test": "Mann-Whitney U",
-                    "d": cohens_d(a_v, b_v),
-                    "n_a": len(a_v), "n_b": len(b_v),
-                }
+            if len(a_v) < 3 or len(b_v) < 3:
+                continue
+            stat, pval = stats.mannwhitneyu(a_v, b_v, alternative="two-sided")
+            comparisons[f"{label_prefix}_{metric}"] = {
+                "stat": float(stat), "p": float(pval),
+                "test": "Mann-Whitney U",
+                "d": cohens_d(a_v, b_v),
+                "n_a": len(a_v), "n_b": len(b_v),
+            }
 
     return {
         "comparisons": comparisons,
