@@ -374,7 +374,18 @@ We report only \emph{scale-invariant} endpoints in the main cross-construction c
   stabilising constants with $L$ the dynamic range. SSIM is dimensionless and bounded on $[0,1]$, hence directly cross-setup comparable.
 
 
-\item \textbf{Visual evoked potential (Felt setup only)}: peak-to-peak amplitude of the pre-averaged checkerboard response, reported for the two long-felt subjects whose .avg files are available in this study (LF02, LF03). VEPs from the gel cohort are excluded from the present analysis because the gel-era acquisition produced unreliable evoked responses under the harmonized pipeline; see Section~\ref{sec:vep_scope} for scope of this exclusion.
+\item \textbf{Visual evoked potential (Felt setup only)}: peak latencies and amplitudes of the pre-averaged checkerboard response, reported for the two long-felt subjects whose .avg files are available in this study (LF02, LF03). For each canonical component $C\in\{\mathrm{N75},\mathrm{P100},\mathrm{N135}\}$ with search window $[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]$, the reported latency $\hat{t}_{C}$ is
+  \begin{equation}
+  \hat{t}_{C}
+  \;=\;
+  \begin{cases}
+  \displaystyle\arg\!\min_{t\in[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]}\bar{V}(t) & C\in\{\mathrm{N75},\mathrm{N135}\},\\[6pt]
+  \displaystyle\arg\!\max_{t\in[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]}\bar{V}(t) & C=\mathrm{P100},
+  \end{cases}
+  \label{eq:peak}
+  \end{equation}
+  with $\bar{V}(t)$ the channel-mean grand-average evoked response and search windows $[t_{\mathrm{N75,lo}},t_{\mathrm{N75,hi}}]=[50,95]$~ms, $[t_{\mathrm{P100,lo}},t_{\mathrm{P100,hi}}]=[90,140]$~ms, $[t_{\mathrm{N135,lo}},t_{\mathrm{N135,hi}}]=[125,180]$~ms (set in \texttt{scripts/build\_felt\_vep\_figure.py}). A latency that pins at the lower or upper window boundary is reported as ``n.r.'' (not resolved) rather than as a numerical peak.\\
+  VEPs from the gel cohort are excluded from cross-construction VEP statistics because the gel-era acquisition produced unreliable evoked responses under the harmonized pipeline; see Section~\ref{sec:vep_scope} for scope of this exclusion and Section~\ref{sec:gel_vep_sanity} for the qualitative documentation.
 \end{itemize}
 
 \subsection{Statistical Analysis}
@@ -503,7 +514,7 @@ Figure~\ref{fig:reactivity} shows alpha reactivity (closed/open ratio); values a
 
 The two paste-tEEG subjects below the Berger threshold are SF02 (paste-tEEG reactivity 0.96; disc 5.00; felt-tEEG 1.67) and SF03 (paste-tEEG 0.88; disc 0.96; felt-tEEG 1.10). On SF03 the attenuation is visible across all three derivations, which points to a subject-level rather than a construction-level effect. On SF02 the non-response is local to the paste-tEEG channel while the disc and felt-tEEG show the expected modulation, suggesting a placement-level issue on the paste TCRE during that session; SF02 also carries a $3.3\%$ ADC-clip WARN flag (Table~\ref{tab:qc}). Both subjects remain in the cohort with the non-response flagged here rather than silently dropped.
 
-The Felt-tEEG reactivity median (1.49) sits well below the Gel-tEEG median (3.63), which warrants comment. Most directly, ADC clipping is concentrated in the felt cohort---four of ten felt sessions (LF02, SF01, SF02, SF07; Table~\ref{tab:qc}) carry a clip-percentage flag, and the rail-clipping events tend to land on high-amplitude eyes-closed segments where they depress $P_{\alpha,\mathrm{closed}}$ and therefore the closed/open ratio. Closed-condition power is also estimated from fewer epochs in the felt cohort, so the per-subject estimate is noisier. A residual construction-level effect remains possible: saline can spread beyond the nominal ring footprint and lower the effective interface impedance, both of which would attenuate posterior alpha at the scalp. The take-away is that the Berger effect itself survives in 10/10 felt subjects, so we keep the felt cohort in the main analysis, but the absolute reactivity magnitude on Felt-tEEG should be read as confounded with acquisition quality.
+The Felt-tEEG reactivity median (1.49) sits well below the Gel-tEEG median (3.63), which warrants comment. Most directly, ADC clipping is concentrated in the felt cohort---four of ten felt sessions (LF02, SF01, SF02, SF07; Table~\ref{tab:qc}) carry a clip-percentage flag, and the rail-clipping events tend to land on high-amplitude eyes-closed segments where they depress $P_{\alpha,\mathrm{closed}}$ and therefore the closed/open ratio. The same clipping mechanism does not symmetrically depress the alpha-band SNR (Felt-tEEG $1.72$~dB vs.\ Gel-tEEG $1.43$~dB; broadly comparable), because the SNR endpoint compares alpha-band power to flanking-band power within the \emph{same} epoch, so a rail-induced cap on the eyes-closed alpha peak attenuates numerator and denominator of $P_{\alpha}/P_{\mathrm{nbr}}$ together; reactivity, by contrast, divides closed-condition alpha power by open-condition alpha power, and rail clipping during high-amplitude closed segments bites the numerator far harder than the denominator. The reactivity-vs-SNR asymmetry is therefore expected from the clipping pattern alone. Closed-condition power is also estimated from fewer epochs in the felt cohort, so the per-subject estimate is noisier. A residual construction-level effect remains possible: saline can spread beyond the nominal ring footprint and lower the effective interface impedance, both of which would attenuate posterior alpha at the scalp. The take-away is that the Berger effect itself survives in 10/10 felt subjects, so we keep the felt cohort in the main analysis, but the absolute reactivity magnitude on Felt-tEEG should be read as confounded with acquisition quality.
 
 \begin{figure}[H]
 \centering
@@ -554,21 +565,7 @@ The paste TCRE is recorded in both setups, so its between-setup behaviour acts a
   \right),
   \label{eq:power}
   \end{equation}
-  which gives $1-\beta\approx 0.60$ at $d=0.8$ and $\alpha=0.05$. Smaller between-setup effects cannot be ruled out at the present sample sizes.\\
- What the bridge does rule out is a between-setup effect of the magnitude we see across constructions in §3.5---the Felt-vs-Gel SSIM contrast of $d=-2.52$ is more than three times the largest paste-bridge effect---so the cross-construction findings are unlikely to be driven primarily by acquisition-side differences between the two setups.
- For each canonical component $C\in\{\mathrm{N75},\mathrm{P100},\mathrm{N135}\}$ with search window $[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]$, the reported latency $\hat{t}_{C}$ is
-  \begin{equation}
-  \hat{t}_{C}
-  \;=\;
-  \arg\!\!\!\min_{t\in[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]}\!\!\bar{V}(t)
-  \quad (\text{negative components, N75/N135}),
-  \qquad
-  \arg\!\!\!\max_{t\in[\cdot,\cdot]}\!\!\bar{V}(t)
-  \quad (\text{positive component, P100}),
-  \label{eq:peak}
-  \end{equation}
-  with $\bar{V}(t)$ the channel-mean grand-average evoked response. A latency that pins at $t_{C,\mathrm{lo}}$ or $t_{C,\mathrm{hi}}$ is reported as ``n.r.''
-  (Section~\ref{tab:felt_vep}).
+  which gives $1-\beta\approx 0.60$ at $d=0.8$ and $\alpha=0.05$. Smaller between-setup effects cannot be ruled out at the present sample sizes. What the bridge does rule out within a given metric is a between-setup effect of the magnitude we see across constructions: paste-bridge SSIM is essentially null ($d=+0.01$, $p=0.83$), whereas the Felt-vs-Gel SSIM construction contrast is $d=-2.52$ on the same metric. The construction-level SSIM separation is more than two orders of magnitude larger than the corresponding setup-level effect, so the cross-construction SSIM finding is unlikely to be driven by acquisition-side differences between the two setups.
 
 
 
@@ -580,7 +577,9 @@ The paste TCRE is recorded in both setups, so its between-setup behaviour acts a
 \end{figure}
 
 \subsection{Visual Evoked Potentials (Felt Setup Only)}\label{sec:vep_scope}
-VEPs are reported here as a qualitative check on the felt setup. The section is deliberately scoped to the two long-felt subjects whose pre-averaged checkerboard responses are available, LF02 and LF03. Figure~\ref{fig:felt_vep} shows the per-subject grand averages over felt-tEEG (channel-mean of TCRE \#1--\#4 tEEG), paste-tEEG, and paste-disc, with N75 / P100 / N135 markers at the canonical-window extrema (Table~\ref{tab:felt_vep}). The clearest morphology in the cohort is on LF02 paste-tEEG: a resolved P100 at 109~ms (\,$\approx 17\ \upmu$V), flanked by a 71~ms N75 and a 132~ms N135, with a small matching deflection on the disc. On LF03 the paste-tEEG trace carries a large positive deflection of $\approx 41\ \upmu$V near 140~ms, but because that latency sits right at the upper edge of the canonical P100 window we are not comfortable reporting it as a P100; the broader shape looks more like a delayed positivity or a P100/N135 fusion than a textbook P100. LF02 felt-tEEG values are noise-dominated, since the felt-tEEG channel mean on that recording is contaminated by the clipped channel flagged in Table~\ref{tab:qc}; we keep the row in Table~\ref{tab:felt_vep} for transparency. Peak-finding throughout is the simple within-window extremum search documented in \texttt{scripts/build\_felt\_vep\_figure.py}, and latencies that would pin at a window boundary (50, 125, or 140~ms) are written as ``n.r.''\ rather than as numerical peaks. With only two usable VEP recordings, this section is hypothesis-generating; an expanded VEP cohort under the harmonized pipeline is left for future work.
+VEPs are reported here as a qualitative check on the felt setup. The section is deliberately scoped to the two long-felt subjects whose pre-averaged checkerboard responses are available, LF02 and LF03. Figure~\ref{fig:felt_vep} shows the per-subject grand averages over felt-tEEG (channel-mean of TCRE \#1--\#4 tEEG), paste-tEEG, and paste-disc, with N75 / P100 / N135 markers at the canonical-window extrema (Table~\ref{tab:felt_vep}; peak-finder defined in Eq.~\eqref{eq:peak}). The clearest morphology in the cohort is on LF02 paste-tEEG: a resolved P100 at 109~ms ($\approx 17\ \upmu$V), flanked by a 71~ms N75 and a 132~ms N135, with a small matching deflection on the disc. On LF03 the paste-tEEG trace carries a large positive deflection of $\approx 41\ \upmu$V near 140~ms, but because that latency sits right at the upper edge of the canonical P100 window we are not comfortable reporting it as a P100; the broader shape looks more like a delayed positivity or a P100/N135 fusion than a textbook P100. LF02 felt-tEEG values are noise-dominated, since the felt-tEEG channel mean on that recording is contaminated by the clipped channel flagged in Table~\ref{tab:qc}; we keep the row in Table~\ref{tab:felt_vep} for transparency. With only two usable VEP recordings, this section is hypothesis-generating; an expanded VEP cohort under the harmonized pipeline is left for future work.
+
+Why we do not report a like-for-like $n=2$ vs.\ $n=2$ qualitative VEP comparison against the gel cohort: the gel-cohort sanity check in Section~\ref{sec:gel_vep_sanity} (G02, G10, and one excluded session) shows that morphology \emph{does} recover on at least one tEEG channel for G02 (marginal) and G10 (clearest, with N75/P100/N135 visible at Pz). However, recovery is per-channel and per-session rather than cohort-level, the strongest gel session (G10) is recovered at Pz and not at the occipital sites where alpha is concentrated in the felt setup, and the excluded session's tEEG is rail-saturated. We did not consider this a quality bar adequate for a between-construction VEP contrast and have left the gel-cohort comparison qualitative; pre-empting cohort growth and a re-collection on a single amplifier under the harmonized pipeline.
 
 The gel cohort is excluded from cross-construction VEP statistics because the gel-era acquisition produced unreliable evoked responses when re-processed under the harmonized pipeline. We document the gel-VEP behaviour qualitatively in Section~\ref{sec:gel_vep_sanity} so that the exclusion is auditable; the underlying cause (amplifier configuration during the gel collection campaign vs.\ residual pipeline differences) is currently under review with the original gel-TCRE operator.
 
