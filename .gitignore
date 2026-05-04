@@ -1,17 +1,26 @@
-# ─── Data files (large binary EEG recordings) ───
-data/
+# ─── Data files (gitignored under URI IRB; do not commit) ───
+data/*
+!data/README_DATA.md
 Gel TCRE/
+
+# Archive folders that contain subject-named raw data or per-subject plots.
+# These pre-date the de-identification scheme and must not be committed.
+archive/ELE573_class_project/data/
+archive/Figures_per_subject_summary/
 
 # ─── Generated output (figures, reports) ───
 output/
 Resutls Individual/
 
-# ─── Python environment ───
+# ─── Python environment / build ───
 venv/
 .venv/
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+build/
+dist/
 
 # ─── Large binary file types ───
 *.eeg
@@ -27,10 +36,18 @@ __pycache__/
 *.log
 *.out
 *.synctex.gz
-my_report/*.pdf
+*.bbl
+*.blg
+*.toc
+*.lof
+*.lot
+archive/my_report/*.pdf
 
 # ─── PDFs (large reference documents) ───
-*.pdf
+TCRE_Gel.pdf
+paper/main.pdf
+paper/supplement.pdf
+archive/**/*.pdf
 
 # ─── Jupyter ───
 .ipynb_checkpoints/

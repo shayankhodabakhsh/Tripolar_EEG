@@ -1,0 +1,105 @@
+% Tripolar EEG — brief QC summary: HS, RK (Long felt-disc), SG (regular Felt TCRE)
+% Compile: pdflatex hs_rk_brief_report.tex (run twice if using cross-refs)
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{parskip}
+\usepackage{xurl}
+\usepackage{hyperref}
+
+\sisetup{detect-all}
+
+\title{Brief Analysis Report: Three Tripolar EEG Recordings\\{\large HS \& RK (Long felt-disc); SG (regular Felt TCRE)}}
+\author{Tripolar EEG study}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Purpose}
+This memo reports pipeline outputs and automated QC metrics for three continuous recordings processed through the project single-subject workflow. \textbf{HS} and \textbf{RK} were collected with the \textbf{Long felt-disc} variant; \textbf{SG} used the \textbf{regular} Felt TCRE configuration (the same class of montage as most other lab participants). Figures are in the Google Drive folder shared with Dr.\ Besio (see Output locations).
+
+\section*{Artifacts generated (all participants)}
+For each participant, the following figure set was produced: raw traces; ADC clipping summary; per-channel spectrograms (Ch1--Ch11); band-limited decomposition; alpha envelopes; alpha reactivity (eyes open vs.\ closed); open vs.\ closed PSD; PSD (alpha-focused band); correlation of alpha envelopes with the disc channel (Ch11); VEP comparison from the averaged file; five SSIM panels (one per TCRE pair) plus an SSIM summary bar chart; and a four-panel summary dashboard.
+
+\section*{HS Long Felt TCRE \textnormal{\textit{(Long felt-disc)}}}
+\textit{Source files:} \texttt{HS Long Felt TCRE 3-24-2026} (\texttt{.eeg}, \texttt{.vhdr}, \texttt{.vmrk}; averaged VEP: \texttt{n\,=\,76} segments).
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}p{0.34\linewidth}p{0.60\linewidth}@{}}
+    \toprule
+    \textbf{Topic} & \textbf{Summary} \\
+    \midrule
+    Recording & ${\sim}8.0$\,min; 7 open/close epochs; 3 stimulation blocks; averaged VEP present ($n=76$). \\
+    QC (automated) & Grade POOR: ADC clipping worst on Felt tEEG Ch3 (${\sim}9.9\%$ of samples); longest contiguous clipped run ${\sim}6.3$--$6.4$\,s. Near-flat windows worst ${\sim}3.3\%$ (Ch5 tEEG). \\
+    Alpha SNR & Median ${\sim}1.8$\,dB across channels. \\
+    Alpha reactivity (closed/open $\alpha$ power) & Median ${\sim}1.27\times$ over channels; paste/disc substantially higher: Ch9 ${\sim}4.8\times$, Ch10 ${\sim}4.3\times$, Ch11 ${\sim}4.7\times$. Several felt tEEG channels remain $>1\times$. \\
+    $\alpha$ envelope vs.\ disc (Ch11) & Paste Ch9--Ch10: $r \approx 0.93$--$0.94$. Felt tEEG: mixed ($\approx 0.08$--$0.41$). \\
+    Spectrogram SSIM (tEEG vs.\ eEEG, same TCRE) & Felt pairs \#1--\#4: 0.24--0.37 (low agreement). Paste pair \#5: ${\sim}0.72$ (high agreement). \\
+    Peak $\alpha$ (eyes closed, Welch) & Example: paste tEEG Ch9 ${\sim}9.0$\,Hz; felt tEEG Ch1 ${\sim}8.8$\,Hz (channel-dependent). \\
+    VEP peak-to-peak (averaged waveform) & Felt tEEG Ch1/3: very large p2p in this pipeline (${\sim}420$--$460$\,$\mu$V); paste Ch9 ${\sim}105$\,$\mu$V; Ch10--Ch11 only ${\sim}5$--$6$\,$\mu$V---interpret with montage and artifact assumptions. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textit{Interpretation (brief):} The paste side looks reliable: alpha blocking is strong on Ch9--Ch11, disc correlations reach $r \approx 0.93$--$0.94$, and SSIM hits ${\sim}0.72$ on paste pair~\#5. Felt tEEG is pulled down by ADC saturation on Ch3 and poor spectrogram similarity ($0.24$--$0.37$) across all four felt pairs.
+
+\section*{RK felt TCRE \textnormal{\textit{(Long felt-disc)}}}
+\textit{Source files:} \texttt{RK felt TCRE 3-13-2026} (\texttt{.eeg}, \texttt{.vhdr}, \texttt{.vmrk}; averaged VEP: \texttt{n\,=\,74} segments).
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}p{0.34\linewidth}p{0.60\linewidth}@{}}
+    \toprule
+    \textbf{Topic} & \textbf{Summary} \\
+    \midrule
+    Recording & ${\sim}7.3$\,min; 7 open/close epochs; 3 stimulation blocks; averaged VEP ($n=74$). \\
+    QC (automated) & Grade POOR: clipping worst Felt tEEG Ch3 (${\sim}3.1\%$ samples; milder than HS). Small near-flat fraction on Ch3 (${\sim}0.7\%$). \\
+    Alpha SNR & Median ${\sim}1.8$\,dB; best channel ${\sim}6.1$\,dB. \\
+    Alpha reactivity & Median ${\sim}0.99\times$ (overall low by this summary); paste/disc strong: Ch9 ${\sim}3.2\times$, Ch10 ${\sim}3.3\times$, Ch11 ${\sim}4.6\times$. \\
+    $\alpha$ envelope vs.\ disc & Paste Ch9--10: $r \approx 0.95$--$0.96$. Felt: several channels near zero or negative vs.\ disc; Ch7 ${\sim}0.40$. \\
+    Spectrogram SSIM & Felt \#1--\#4: 0.18--0.31; paste \#5: ${\sim}0.78$. \\
+    Peak $\alpha$ (eyes closed) & Paste Ch9 ${\sim}10.7$\,Hz; felt Ch1 ${\sim}11.0$\,Hz. \\
+    VEP peak-to-peak & Felt tEEG moderate--large (e.g.\ Ch3 ${\sim}370$\,$\mu$V); paste Ch9 ${\sim}77$\,$\mu$V; Ch10--11 ${\sim}6$--$9$\,$\mu$V. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textit{Interpretation (brief):} Paste/disc channels again outperform felt tEEG. Clipping is lighter than in HS (${\sim}3.1\%$ vs.\ ${\sim}9.9\%$ on Ch3), but felt--disc alpha envelope correlations are weaker, with several channels near zero or negative.
+
+\section*{SG felt TCRE \textnormal{\textit{(regular Felt TCRE)}}}
+\textit{Source files:} \texttt{SG felt TCRE 3-12-2026} (\texttt{.eeg}, \texttt{.vhdr}, \texttt{.vmrk}; averaged VEP: \texttt{n\,=\,74} segments).
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}p{0.34\linewidth}p{0.60\linewidth}@{}}
+    \toprule
+    \textbf{Topic} & \textbf{Summary} \\
+    \midrule
+    Recording & ${\sim}6.2$\,min; 7 open/close epochs; 3 stimulation blocks; averaged VEP ($n=74$). \\
+    QC (automated) & Grade POOR: ADC clipping worst on Felt tEEG Ch1 (${\sim}34.4\%$ of samples; longest run ${\sim}1.5$\,s). Near-flat windows worst ${\sim}19.9\%$ (Ch1 tEEG). \\
+    Alpha SNR & Median ${\sim}1.6$\,dB; best channel ${\sim}10.3$\,dB. \\
+    Alpha reactivity & Median ${\sim}1.39\times$; paste Ch9 ${\sim}3.1\times$, Ch10 ${\sim}2.9\times$, Ch11 ${\sim}17.8\times$ (disc shows an extreme closed/open ratio in this run). \\
+    $\alpha$ envelope vs.\ disc & Paste Ch9--10: $r \approx 0.80$--$0.81$. Felt tEEG: mostly weak vs.\ disc; Ch3 ${\sim}0.41$. \\
+    Spectrogram SSIM & Felt \#1--\#4: 0.12--0.27; paste \#5: ${\sim}0.60$ (moderate; lower than HS/RK paste SSIM). \\
+    Peak $\alpha$ (eyes closed) & Paste Ch9 ${\sim}9.5$\,Hz; felt Ch1 ${\sim}8.1$\,Hz. \\
+    VEP peak-to-peak & Felt tEEG Ch1 especially large (${\sim}590$\,$\mu$V); paste Ch9 ${\sim}30$\,$\mu$V; Ch10--11 ${\sim}3$--$7$\,$\mu$V. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textit{Interpretation (brief):} Despite the regular (non--Long) felt configuration, SG's Felt tEEG Ch1 is the worst clipping/flatline case among these three uploads. Paste still shows blocking and usable disc correlation, but paste spectrogram SSIM is only ${\sim}0.60$, so tEEG/eEEG agreement on the paste pair is not as tight as in HS/RK.
+
+\section*{Side-by-side comparison}
+\textbf{Protocol:} HS and RK are \textbf{Long felt-disc}; SG is \textbf{regular} Felt TCRE like the majority of other study recordings. \textbf{QC:} SG carries the heaviest raw penalty on Felt tEEG Ch1 (${\sim}34\%$ clipped; ${\sim}20\%$ near-flat), versus HS's Ch3-centric saturation (${\sim}10\%$) and RK's milder Ch3 clipping (${\sim}3\%$). \textbf{Paste SSIM:} highest in RK (${\sim}0.78$), then HS (${\sim}0.72$), then SG (${\sim}0.60$). \textbf{Felt SSIM} stays low for all three ($0.12$--$0.37$). Alpha blocking on paste/disc remains more consistent than on felt channels across participants.
+
+\section*{Output locations}
+\noindent\textbf{Shared folder (Google Drive, Dr.\ Besio):}\\
+\href{https://drive.google.com/drive/folders/1_dWUq1SyyP8dv59GeOEPtZUoBWs0N9XL?usp=drive_link}{drive.google.com/drive/folders/1\_dWUq1SyyP8dv59GeOEPtZUoBWs0N9XL}
+
+\end{document}
