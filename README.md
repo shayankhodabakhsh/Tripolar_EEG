@@ -129,7 +129,7 @@ and `supplement.tex`.
 
 - **Shayan Khodabakhsh** (lead, analysis pipeline) — skhodabakhsh@uri.edu
 - **Behtom Adeli** (gel-cohort recordings, gel-TCRE pipeline)
-- **Maryam Norouzi** (felt-cohort recordings, electrode housing and 3D printing)
+- **Maryam Norouzi** (gel-cohort recordings, electrode housing and 3D printing)
 - **Walter G. Besio** (PI, supervision)
 
 Additional acknowledgements are listed in `paper/main.tex`.
