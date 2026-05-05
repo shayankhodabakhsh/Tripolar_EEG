@@ -128,12 +128,11 @@ and `supplement.tex`.
 ## Authors
 
 - **Shayan Khodabakhsh** (lead, analysis pipeline) — skhodabakhsh@uri.edu
-- **Behtom Adeli** (gel-cohort recordings, original gel-TCRE pipeline)
+- **Behtom Adeli** (gel-cohort recordings, gel-TCRE pipeline)
+- **Maryam Norouzi** (gel-cohort recordings, electrode housing and 3D printing)
 - **Walter G. Besio** (PI, supervision)
 
-Acknowledgements (recordings, electrode placement, 3D printing) are
-listed in `paper/main.tex`. Author surnames marked TBD in the
-manuscript will be filled in before submission.
+Additional acknowledgements are listed in `paper/main.tex`.
 
 ## Citation
 

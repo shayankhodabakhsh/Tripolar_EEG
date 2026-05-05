@@ -3,10 +3,9 @@ data/*
 !data/README_DATA.md
 Gel TCRE/
 
-# Archive folders that contain subject-named raw data or per-subject plots.
-# These pre-date the de-identification scheme and must not be committed.
-archive/ELE573_class_project/data/
-archive/Figures_per_subject_summary/
+# Archive folder: legacy notebooks, reports, and per-subject plots from
+# pre-restructure work. Kept locally only; not part of the shared repo.
+archive/
 
 # ─── Generated output (figures, reports) ───
 output/
@@ -41,13 +40,11 @@ dist/
 *.toc
 *.lof
 *.lot
-archive/my_report/*.pdf
 
 # ─── PDFs (large reference documents) ───
 TCRE_Gel.pdf
 paper/main.pdf
 paper/supplement.pdf
-archive/**/*.pdf
 paper/literature/
 
 # ─── Jupyter ───
