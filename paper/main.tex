@@ -332,7 +332,7 @@ the rest of the recording is retained.
 
 \subsection{Endpoints}
 
-We report only \emph{scale-invariant} endpoints in the main cross-construction comparison, because the gel setup applies a hardware-level $1/187$ scaling on tEEG channels that makes raw amplitudes incomparable to the felt setup.
+We report only \emph{scale-invariant} endpoints in the main cross-construction comparison. Raw amplitudes are not directly comparable across the two acquisition setups because the felt and gel cohorts were recorded on different amplifier models with different INT16 resolutions (V-Amp at $0.1\ \upmu$V/bit on most sessions, BrainAmp at $0.0488\ \upmu$V/bit on a subset of gel sessions; see Eq.~\eqref{eq:adc}) and on different days with potentially different operators. No per-channel amplitude scaling is applied beyond the per-recording resolution conversion of Eq.~\eqref{eq:adc}; the alpha-band SNR, eyes-closed/eyes-open reactivity, and tEEG--eEEG SSIM endpoints are all dimensionless ratios and therefore unaffected by between-setup amplitude differences.
 
 \begin{itemize}
 \item \textbf{Alpha-band SNR (dB)} computed from the Welch PSD $\hat{S}(f)$~\cite{welch1967}:
