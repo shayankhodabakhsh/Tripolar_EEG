@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this software or the accompanying paper, please cite as below."
+title: "Tripolar EEG: methods-harmonized comparison of TCRE constructions"
+version: 0.1.0
+date-released: 2026-05-03
+type: software
+license: MIT
+repository-code: "https://github.com/Shayank1996/Tripolar_EEG"
+authors:
+  - family-names: Khodabakhsh
+    given-names: Shayan
+    email: skhodabakhsh@uri.edu
+    affiliation: University of Rhode Island, Department of Electrical, Computer and Biomedical Engineering
+  - family-names: Adeli
+    given-names: Behtom
+    affiliation: University of Rhode Island, Department of Electrical, Computer and Biomedical Engineering
+  - family-names: Norouzi
+    given-names: Maryam
+    affiliation: University of Rhode Island, Department of Electrical, Computer and Biomedical Engineering
+  - family-names: Besio
+    given-names: Walter G.
+    affiliation: University of Rhode Island, Department of Electrical, Computer and Biomedical Engineering
+keywords:
+  - tripolar concentric ring electrode
+  - TCRE
+  - EEG
+  - surface Laplacian
+  - methods harmonization
+preferred-citation:
+  type: article
+  title: "A Methods-Harmonized Comparison of Tripolar Concentric Ring Electrode Constructions for Non-Invasive EEG: Saline-Soaked Felt, Conductive Gel, and Paste"
+  year: 2026
+  status: in-preparation
+  authors:
+    - family-names: Khodabakhsh
+      given-names: Shayan
+    - family-names: Adeli
+      given-names: Behtom
+    - family-names: Norouzi
+      given-names: Maryam
+    - family-names: Besio
+      given-names: Walter G.

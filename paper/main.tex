@@ -1,0 +1,727 @@
+%-------------------------------------------------------------------------------
+% Three-way TCRE electrolyte comparison: Felt vs Gel vs Paste
+% Target journal: MDPI Sensors
+%
+% Compile mode toggle:
+%   \previewtrue   -> compile WITHOUT the MDPI template (default; works on
+%                     vanilla TeX Live / Overleaf, no template upload needed).
+%                     Layout mimics MDPI Sensors but is not the official class.
+%   \previewfalse  -> compile WITH the official MDPI Sensors template.
+%                     Requires Definitions/mdpi.{cls,bst,cfg} from
+%                       https://www.mdpi.com/authors/latex
+%                     Place the Definitions/ folder next to this file, then flip
+%                     the toggle below to \previewfalse.
+%
+% Build:  pdflatex main && bibtex main && pdflatex main && pdflatex main
+%-------------------------------------------------------------------------------
+
+\newif\ifpreview
+\previewtrue   % <-- flip to \previewfalse once Definitions/mdpi.cls is uploaded
+
+\ifpreview
+%======================== PREVIEW (no MDPI template) ===========================
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{titlesec}
+\usepackage{authblk}
+\usepackage{textgreek}
+\providecommand{\upmu}{\ensuremath{\mu}}        % \upmu fallback for V/bit (works in math+text)
+\hypersetup{colorlinks=true, linkcolor=black, citecolor=blue, urlcolor=blue}
+\setlist[itemize]{leftmargin=1.4em, itemsep=2pt, topsep=4pt}
+\setlist[enumerate]{leftmargin=1.6em, itemsep=2pt, topsep=4pt}
+\titleformat*{\section}{\Large\bfseries}
+\titleformat*{\subsection}{\large\bfseries}
+
+% MDPI-only commands become no-ops in preview mode so the body compiles unchanged.
+\newcommand{\Title}[1]{\title{#1}}
+\newcommand{\TitleCitation}[1]{}
+\newcommand{\Author}[1]{\author{#1}}
+\newcommand{\AuthorNames}[1]{}
+\newcommand{\AuthorCitation}[1]{}
+\newcommand{\address}[1]{}
+\newcommand{\corres}[1]{\gdef\PreviewCorres{#1}}
+\newcommand{\PreviewCorres}{}
+\renewcommand{\abstract}[1]{\gdef\PreviewAbstract{#1}}
+\newcommand{\PreviewAbstract}{}
+\newcommand{\keyword}[1]{\gdef\PreviewKeywords{#1}}
+\newcommand{\PreviewKeywords}{}
+\newcommand{\firstpage}[1]{}
+\newcommand{\pubvolume}[1]{}
+\newcommand{\issuenum}[1]{}
+\newcommand{\articlenumber}[1]{}
+\newcommand{\pubyear}[1]{}
+\newcommand{\copyrightyear}[1]{}
+\newcommand{\externaleditor}[1]{}
+\newcommand{\datereceived}[1]{}
+\newcommand{\daterevised}[1]{}
+\newcommand{\dateaccepted}[1]{}
+\newcommand{\datepublished}[1]{}
+\newcommand{\hreflink}[1]{}
+\newcommand{\orcidA}{}
+\newcommand{\orcidB}{}
+\newcommand{\orcidC}{}
+\newcommand{\orcidD}{}
+\newcommand{\authorcontributions}[1]{\section*{Author Contributions}#1}
+\newcommand{\funding}[1]{\section*{Funding}#1}
+\newcommand{\institutionalreview}[1]{\section*{Institutional Review Board Statement}#1}
+\newcommand{\informedconsent}[1]{\section*{Informed Consent Statement}#1}
+\newcommand{\dataavailability}[1]{\section*{Data Availability Statement}#1}
+\newcommand{\acknowledgments}[1]{\section*{Acknowledgments}#1}
+\newcommand{\conflictsofinterest}[1]{\section*{Conflicts of Interest}#1}
+\newcommand{\reftitle}[1]{\renewcommand{\refname}{#1}}
+\newcommand{\externalbibliography}[1]{}
+\newcommand{\printendnotes}[1][]{}
+\newenvironment{adjustwidth}[2]{}{}
+\providecommand{\extralength}{0pt}
+\else
+%======================== OFFICIAL MDPI Sensors template =======================
+\documentclass[sensors,article,submit,pdftex,moreauthors]{Definitions/mdpi}
+\firstpage{1}
+\makeatletter
+\setcounter{page}{\@firstpage}
+\makeatother
+\pubvolume{1}
+\issuenum{1}
+\articlenumber{0}
+\pubyear{2026}
+\copyrightyear{2026}
+\externaleditor{Academic Editor: }
+\datereceived{}
+\daterevised{}
+\dateaccepted{}
+\datepublished{}
+\hreflink{https://doi.org/}
+\fi
+%==============================================================================
+
+% Collaborator markup (works in either mode).
+\usepackage{xcolor}
+\newcommand{\TBD}[1]{{\color{red}\textbf{[TBD: #1]}}}
+\newcommand{\NEEDCITE}[1]{{\color{orange}\textbf{[CITE: #1]}}}
+\newcommand{\NOTE}[1]{{\color{blue}\textit{[note: #1]}}}
+
+\Title{A Methods-Harmonized Comparison of Tripolar Concentric Ring Electrode Constructions for Non-Invasive EEG: Saline-Soaked Felt, Conductive Gel, and Paste}
+
+\TitleCitation{A methods-harmonized comparison of tripolar concentric ring electrode constructions for non-invasive EEG}
+
+\newcommand{\orcidauthorA}{0000-0000-0000-0000}
+\newcommand{\orcidauthorB}{0000-0000-0000-0000}
+\newcommand{\orcidauthorC}{0000-0000-0000-0000}
+\newcommand{\orcidauthorD}{0000-0000-0000-0000}
+
+\Author{Shayan Khodabakhsh $^{1,}$*\orcidA{}, Behtom Adeli $^{1}$\orcidB{}, Maryam Norouzi $^{1}$\orcidC{}, and Walter G. Besio $^{1}$\orcidD{}}
+
+\AuthorNames{Shayan Khodabakhsh, Behtom Adeli, Maryam Norouzi, and Walter G. Besio}
+
+\AuthorCitation{Khodabakhsh, S.; Adeli, B.; Norouzi, M.; Besio, W.G.}
+
+\address{%
+$^{1}$ \quad Department of Electrical, Computer and Biomedical Engineering, University of Rhode Island, Kingston, RI, USA; \TBD{co-author emails}
+}
+
+\corres{Correspondence: skhodabakhsh@uri.edu}
+
+%-------------------------------------------------------------------------------
+\abstract{The tripolar concentric ring electrode (TCRE) records two simultaneous derivations at one scalp site: a conventional outer-ring channel (eEEG) and an on-board surface-Laplacian estimate (tEEG). Existing TCRE studies use different scalp couplings---saline-soaked felt, conductive gel, paste---and different processing pipelines, which makes their results awkward to read against each other. This pilot compares the three couplings on the same hardware: a felt setup ($n=10$), a gel setup ($n=13$), and a paste TCRE present in both setups as a cross-setup bridge. Ring geometry and the on-board Laplacian are identical across both setups, so what differs across cohorts is electrolyte and scalp contact. Every recording is processed through one minimal pipeline (60~Hz notch, zero-phase FIR 0.05--55~Hz bandpass) and scored on three scale-invariant endpoints: alpha-band SNR, eyes-closed/eyes-open reactivity, and tEEG--eEEG spectrogram SSIM. The Berger effect is detectable on Paste tEEG in 21/23, Gel tEEG in 13/13, and Felt tEEG in 10/10. The construction effect shows up most cleanly in SSIM: per-class medians are Felt $0.31 <$ Gel $0.52 <$ Paste $0.71$, and the Felt-vs-Gel contrast is large ($U=0$, $p<0.001$, $d=-2.52$). The paste-TCRE bridge does not separate the two setups on any endpoint. We frame these findings as descriptive at the pilot scale.}
+
+\keyword{tripolar concentric ring electrode; surface Laplacian; EEG; alpha rhythm; visual evoked potential; methods harmonization; electrolyte; signal quality}
+
+\begin{document}
+
+\ifpreview
+% In preview mode we render the title block, abstract, and keywords manually,
+% since the MDPI commands above were captured as no-ops or stored macros.
+\maketitle
+\begin{center}\small\PreviewCorres\end{center}
+\begin{center}
+\begin{minipage}{0.9\linewidth}
+\noindent\textbf{Abstract.} \PreviewAbstract\par\medskip
+\noindent\textbf{Keywords:} \PreviewKeywords
+\end{minipage}
+\end{center}
+\medskip
+\hrule
+\medskip
+\fi
+
+%-------------------------------------------------------------------------------
+\section{Introduction}
+
+The tripolar concentric ring electrode (TCRE) places three concentric conductive rings at a single scalp site and produces two simultaneous derivations: an outer-ring conventional recording (eEEG) referenced to a remote site, and an on-board surface-Laplacian estimate computed from all three rings (tEEG)~\cite{besio2006}. The Laplacian acts as a spatial high-pass filter and has been shown to suppress volume conduction, sharpen focal source detection, and reduce reference-related artifact relative to disc EEG~\cite{besio2006,koka2007}.
+
+A practical question for any TCRE study is how the device couples to the scalp. Three constructions are encountered: saline-soaked felt pads, conductive gel, and conductive paste. Among published TCRE recordings the dominant coupling has been Ten-20 paste, used both in early TCRE methodology and BCI work~\cite{besio2008bci} and in subsequent applied studies covering high-frequency activity in epilepsy~\cite{toole2019hfo}, computational and experimental spatial-resolution validation~\cite{liu2020spatial}, and visual evoked potentials~\cite{wise2025vep}. Conductive gel for TCREs has also been evaluated systematically: sixteen commercial gels were tested with TCREs and a custom low-conductivity formulation was developed specifically for the device~\cite{vincelli2024}. Saline-soaked felt as a TCRE coupling, by contrast, is not documented in the published TCRE literature we are aware of and is one of the constructions characterised here. Each coupling has trade-offs in preparation time, impedance stability, motion robustness, and patient tolerance~\cite{tallgren2005}; for TCREs specifically, the inter-ring potential difference that the on-board Laplacian relies on depends on the conductivity and impedance of the coupling layer, so the choice of electrolyte is not separable from the spatial filter the device implements~\cite{vincelli2024}. Published TCRE evaluations typically use a single construction and a study-specific processing pipeline~\cite{wise2025vep,stuart2024sleep,toole2019hfo}, which makes it difficult to read across reports and compare constructions on like-for-like endpoints.
+
+The closest sibling work is Wise et al.~\cite{wise2025vep}, who compared TCRE and traditional EEG on the pattern-reversal visual evoked potential in $n=9$ adults using six Ten-20-coupled TCREs (Oz reported) and a BrainVision actiCHaMP Plus amplifier at 1000~Hz---the same amplifier family used in our paste and gel setups. They derive both signals from the same physical electrode by emulating eEEG from the outer ring and computing tEEG from the on-board Laplacian, and they report (i) approximately threefold lower 60-Hz line-noise intrusion in tEEG than in eEEG, (ii) a significantly higher tEEG SNR specifically in the alpha band ($p=0.004$, Bonferroni-corrected), with no significant SNR difference in delta, theta or beta, and (iii) systematic peak-latency shifts in which tEEG peaks fall later than eEEG (large-check P1 difference $\approx 14$~ms, N2 $\approx 22$~ms, both $p<0.001$). Their question is whether the TCRE itself recovers a usable VEP relative to a conventional disc; ours is whether, given that TCREs work, the choice of electrolyte coupling changes the picture. The two questions are complementary. Our paste-tEEG VEP morphology in Section~\ref{sec:vep_scope} provides a small qualitative consistency check against Wise et al.: subject LF02's paste-tEEG P100 at 109~ms sits inside the canonical adult range and is consistent with the P1 latencies Wise et al.\ report for tEEG (their large-check tEEG P1 mean latency includes a $\approx 14$~ms shift relative to eEEG, placing tEEG P1 in the 105--115~ms band that contains our LF02 reading). One pipeline difference worth flagging: Wise et al.\ apply an 8th-order 0.3~Hz IIR Butterworth high-pass to eEEG post-hoc to match the 0.3~Hz analog high-pass on the t-Interface 20 tEEG path, whereas our pipeline applies a single 0.5~Hz FIR high-pass to all channels; both choices aim at matched filtering across modalities, but the corner frequency and filter family differ slightly. A full quantitative cross-comparison of latencies, amplitudes, and SNR-by-band against Wise et al.\ is outside the present scope and is left to a follow-up.
+
+This work is a methods-harmonized pilot comparison of three TCRE constructions---saline-soaked felt, conductive gel, and paste---processed through a single, deliberately minimal preprocessing pipeline and evaluated on scale-invariant endpoints. The paste TCRE is recorded in both acquisition setups and serves as a cross-setup bridge. The contribution is methodological: we document the harmonized pipeline, report cohort-level results for alpha-band detection, eyes-closed reactivity, spectrogram similarity, and (where the data support it) visual evoked potentials, and because both setups use the same hardware Laplacian on TCREs of identical ring geometry, the cross-construction contrast is on electrolyte and coupling rather than on the Laplacian estimator itself.
+
+The framing throughout is descriptive and pilot-grade: cohort sizes are small, sample sizes per construction are imbalanced, and we make no causal claims. The aim is to give future TCRE comparison studies a shared analysis pipeline and a reusable cross-setup bridge design.
+
+%-------------------------------------------------------------------------------
+\section{Materials and Methods}
+
+\subsection{Subjects and Cohort}
+
+The cohort comprises three TCRE construction classes recorded across two acquisition setups (Table~\ref{tab:cohort}).
+
+\begin{itemize}
+\item \textbf{Felt setup} (URI lab, 2026). Eleven-channel BrainVision recording at 1000~Hz: four felt TCREs (channels 1--8, alternating tEEG/eEEG), one paste TCRE (channels 9--10), and a paste conventional disc (channel 11). The cohort comprises all felt sessions (long and short) that pass per-subject signal-quality QC as specified in Section~\ref{sec:qc}. Felt sessions divide into two physical sub-cohorts by the screw used to seat the TCRE in its 3D-printed housing. Long-felt (LF) sessions use the longer-screw housing, which seats a thicker saline-soaked felt pad and supports a longer recording window; short-felt (SF) sessions use the shorter-screw housing \TBD{ Maryam, can you please confirm this ? can you please explain the details of how you made it and also the devices fro this section}. The two sub-cohorts are pooled for the primary analyses in Section~\ref{sec:cohort_qc}--§3.6, and supplement Section~S6 verifies that the construction-level conclusions hold in each sub-cohort separately.
+\item \textbf{Gel setup} (URI lab, October--November 2024). Seven-channel BrainVision recording at 1000~Hz: two gel TCREs at O1 and O2 (channels 1--4), one paste TCRE at Pz (channels 5--6), and a conventional disc at Pz (channel 7). Cohort: all gel subjects discoverable under the project gel directory that pass per-subject \TBD{Behtam can you please explain this data capturing sessions in detail ?}QC (Section~\ref{sec:qc}).
+\item \textbf{Paste TCRE bridge.} Paste TCRE is present in both setups and serves as the cross-setup comparability check.
+\end{itemize}
+
+All sessions were recorded under a checkerboard-VEP plus eyes-open/eyes-closed paradigm. The eyes-open/closed protocol follows~\cite{kirschfeld2005}.
+
+\begin{table}[H]
+\caption{Cohort summary by acquisition setup. Subject counts are post-QC.}
+\label{tab:cohort}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Setup} & \textbf{Channels} & \textbf{Constructions on board} & \textbf{$n$ (post-QC)} \\
+\midrule
+Felt (long + short) & 11 & felt~$\times 4$, paste~$\times 1$, disc & 10 (3 long, 7 short) \\
+Gel                  &  7 & gel~$\times 2$, paste~$\times 1$, disc  & 13 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Recording Setups}
+The TCRE has three concentric conductive rings: an outer ring at radius $r_{o}$, a middle/inner ring at radius $r_{i}<r_{o}$, and a central disc. Let $V_{o}$, $V_{i}$, and $V_{d}$ be
+   the potentials measured on each ring relative to a remote reference. The conventional (eEEG) channel is the outer-ring potential
+  \begin{equation}
+  V_{\mathrm{eEEG}} \;=\; V_{o}.
+  \label{eq:eeeg}
+  \end{equation}
+  The on-board tEEG channel is the amplifier's hardware-implemented surface-Laplacian estimate~\cite{besio2006},
+  \begin{equation}
+  V_{\mathrm{tEEG}}
+  \;=\;
+  \alpha_{i}\,V_{i} \;-\; \alpha_{o}\,V_{o} \;-\; \alpha_{d}\,V_{d},
+  \label{eq:teeg}
+  \end{equation}
+  where the weights $\alpha_{i},\alpha_{o},\alpha_{d}$ are set by the amplifier's analog front-end so that the linear combination approximates the discrete second spatial derivative on
+   a flat scalp~\cite{besio2006,koka2007}. Both setups in this study record $V_{\mathrm{tEEG}}$ as a hardware output: no software Laplacian reconstruction from the three ring channels
+  is performed.
+
+Both setups record BrainVision INT16 binary data at 1000~Hz. Amplifier resolution is read directly from each subject's .vhdr at load time (0.1~$\upmu$V/bit on most sessions; 0.0488~$\upmu$V/bit on a subset of gel sessions recorded with a different amplifier model).
+
+In both setups the tEEG channel is the amplifier's hardware Laplacian output, and the eEEG channel is the conventional outer-ring derivation referenced to a remote site. No software Laplacian reconstruction is performed.
+
+No per-channel amplitude scaling is applied beyond the int16-to-microvolt conversion specified in each subject's .vhdr.\\
+  Raw integer codes $K_{c}[n]\in\{-32{,}768,\ldots,32{,}767\}$ are converted to micro-volts at load time using the per-channel resolution $r_{c}$ ($\upmu$V/bit) read directly from the
+  subject's \texttt{.vhdr}:
+  \begin{equation}
+  x_{c}[n] \;=\; K_{c}[n]\,\cdot\,r_{c}.
+  \label{eq:adc}
+  \end{equation}
+  Most sessions use $r_{c}=0.1\ \upmu$V/bit (V-Amp); a subset of gel sessions recorded on a different amplifier (BrainAmp) use $r_{c}=0.0488\ \upmu$V/bit. No further per-channel
+  amplitude scaling is applied.
+
+\subsection{Electrode Placement and Reference}\label{sec:electrode_placement}
+
+Scalp sites follow the international 10--20 system in both setups, with TCREs centred on the nominal 10--20 location and the conventional disc, where present, placed adjacent to the nearest TCRE so the two derivations sample the same scalp region.
+
+\paragraph{Gel setup.} Two gel TCREs are placed over primary visual cortex at \textbf{O1} and \textbf{O2}; one paste TCRE is placed at \textbf{Pz}; and a conventional disc electrode is placed approximately 1~cm superior to Pz to provide a side-by-side conventional-EEG comparator within the same recording. The reference electrode is on the right mastoid and the ground is on the forehead. Skin-to-electrode impedance is verified before recording to be below 5~k$\Omega$ for the conventional disc, below 10~k$\Omega$ for the gel TCREs, and below 20~k$\Omega$ for the paste TCRE; the higher ceiling for paste reflects the higher native impedance of Ten-20 paste relative to a saline-based gel and is acceptable because the on-board Laplacian relies on the inter-ring potential difference, which a higher coupling impedance preserves rather than degrades~\cite{vincelli2024}.
+
+\paragraph{Felt setup.} The felt setup uses the same occipital and parietal scheme as the gel setup so that contrasts across setups isolate the coupling rather than the scalp region: four felt TCREs cover the occipito-parietal strip, one paste TCRE provides the cross-setup bridge, and a paste-coupled conventional disc provides the felt-setup conventional comparator. \TBD{Maryam, please confirm the specific 10--20 sites for the four felt TCREs (long- and short-felt housings), the paste-TCRE site, the disc site, the reference, and the impedance ceilings used at acquisition.}
+
+\subsection{Preprocessing Pipeline}
+
+The primary pipeline is intentionally minimal so that adaptive cleaners cannot behave differently across constructions and confound the comparison:
+
+\begin{enumerate}[label=(\alph*)]
+\item 60~Hz IIR notch filter ($Q=30$). The analog prototype is
+  \begin{equation}
+  H_{\mathrm{notch}}(s) \;=\; \frac{s^{2} + \omega_{0}^{2}}{s^{2} + (\omega_{0}/Q)\,s + \omega_{0}^{2}},
+  \qquad \omega_{0} = 2\pi f_{0},\; f_{0}=60~\mathrm{Hz},
+  \label{eq:notch}
+  \end{equation}
+  which is mapped to a digital filter via the bilinear transform with sample rate $f_{s}=1000$~Hz. The $-3$~dB notch bandwidth is $\mathrm{BW} = f_{0}/Q = 2$~Hz.
+
+ \item Zero-phase FIR bandpass 0.05--55~Hz, Hamming window. The bandpass impulse response is the Hamming-windowed difference of two ideal lowpass kernels:
+  \begin{align}
+  h[n] &= w[n]\bigl(2 f_{h}\,\mathrm{sinc}(2 f_{h} \tilde{n}) - 2 f_{l}\,\mathrm{sinc}(2 f_{l} \tilde{n})\bigr),
+  \quad \tilde{n} = (n - (N-1)/2)/f_{s},\nonumber\\
+  w[n] &= 0.54 - 0.46\cos\!\Bigl(\tfrac{2\pi n}{N-1}\Bigr),\qquad n = 0,\ldots,N-1,
+  \label{eq:fir}
+  \end{align}
+  with passband edges $f_{l}=0.05$~Hz, $f_{h}=55$~Hz and tap count $N$ chosen to span four cycles of $f_{l}$. Zero-phase response is achieved by forward--backward filtering:
+  \begin{equation}
+  y[n] \;=\; \bigl(h \ast \bigl(\overleftarrow{h \ast x}\bigr)\bigr)[n],
+  \label{eq:filtfilt}
+  \end{equation}
+  which gives an effective magnitude response $|H_{\mathrm{eff}}(\omega)|^{2}$ and zero group delay.
+
+\item No wavelet denoising. No ICA. No automated bad-channel interpolation. No re-referencing (the Laplacian is internal to each TCRE; the disc reference is the recorded mastoid).
+\item Per-channel z-score normalization is applied only \emph{after} metric computation, never before SNR or PSD:
+  \begin{equation}
+  z_{c}[n] \;=\; \frac{x_{c}[n] - \mu_{c}}{\sigma_{c}},
+  \qquad
+  \mu_{c} = \frac{1}{T}\sum_{n=0}^{T-1} x_{c}[n],\quad
+  \sigma_{c}^{2} = \frac{1}{T-1}\sum_{n=0}^{T-1}\bigl(x_{c}[n]-\mu_{c}\bigr)^{2},
+  \label{eq:zscore}
+  \end{equation}
+  where $c$ indexes channels and $T$ is the number of samples in the segment under test (per-epoch in variant~A, per-recording when reported as a normalised trace).
+\end{enumerate}
+
+Three sensitivity variants are reported in the supplement: (A)~notch + bandpass + Daubechies-8 level-3 wavelet + per-epoch z-score (the original gel-TCRE pipeline); (B)~notch + bandpass only (primary); (C)~notch only. Conclusions are required to hold across all three before any claim is retained in the main text.
+
+
+\subsection{Quality Control and Exclusions}\label{sec:qc}
+Each subject and each channel is screened on two computed quantities and three count-based integrity checks before entering the analysis cohort. The two computed quantities are the
+ADC clipping fraction and the mean tEEG alpha SNR.
+
+\paragraph{ADC clipping fraction.} For channel $c$ recorded with INT16 resolution $r_{c}$ ($\upmu$V/bit) and rail $K_{\max}=32{,}767$, the per-channel clipping fraction is
+\begin{equation}
+\mathrm{clip}_{c}
+\;=\;
+\frac{1}{T}\sum_{n=0}^{T-1}\mathbb{1}\!\left\{\,\bigl|x_{c}[n]\bigr|\,/\,r_{c}\,\ge\,K_{\max}-1\,\right\},
+\label{eq:clip}
+\end{equation}
+where $T$ is the recording length in samples and $\mathbb{1}\{\cdot\}$ is the indicator function. The per-subject clipping percentage reported in Table~\ref{tab:qc} is the mean
+across all channels: $\overline{\mathrm{clip}} = (100/C)\sum_{c=1}^{C}\mathrm{clip}_{c}$.
+
+\paragraph{Mean tEEG alpha SNR.} Let $\mathcal{T}\subseteq\{1,\ldots,C\}$ index the subject's tEEG channels (the four felt-tEEG plus the paste-tEEG channel for the felt setup; the
+two gel-tEEG plus the paste-tEEG channel for the gel setup). The per-subject mean tEEG alpha SNR is
+\begin{equation}
+\overline{\mathrm{SNR}_{\alpha}^{\,t}}
+\;=\;
+\frac{1}{|\mathcal{T}|}\sum_{c\in\mathcal{T}}\mathrm{SNR}_{\alpha}^{(c)},
+\label{eq:meansnrt}
+\end{equation}
+with $\mathrm{SNR}_{\alpha}^{(c)}$ defined as in Eq.~\eqref{eq:snr}. We use this aggregate, not any single channel, as the SNR-based QC gate so that one bad tEEG channel cannot fail
+an otherwise good recording.
+\paragraph{Decision rule.} Each subject is assigned a three-tier status using the gates in Table~\ref{tab:qc_rule}. The rule first checks four hard-fail conditions; a subject failing
+ any one is excluded entirely. The rule then counts soft-flag conditions; a subject with exactly one soft flag is retained with a \textbf{WARN} status, and a subject with two or more
+ soft flags is excluded.
+
+\begin{table}[H]
+\caption{QC decision rule. \texttt{n\_open}, \texttt{n\_close} are eyes-open and eyes-closed epoch counts; \texttt{dur} is the recording duration in seconds.}
+\label{tab:qc_rule}
+\centering\small
+\begin{tabular}{llc}
+\toprule
+\textbf{Type} & \textbf{Condition} & \textbf{Effect} \\
+\midrule
+Hard-fail  & $\overline{\mathrm{clip}} > 5\%$ & exclude subject \\
+Hard-fail  & $\overline{\mathrm{SNR}_{\alpha}^{\,t}} < -1\ \mathrm{dB}$ & exclude subject \\
+Hard-fail  & $\texttt{n\_open} < 2$ \;\textbf{or}\; $\texttt{n\_close} < 2$ & exclude subject \\
+Hard-fail  & $\texttt{dur} < 60\ \mathrm{s}$ & exclude subject \\
+Hard-fail  & unknown channel-layout (e.g.\ 9-channel prototype) & exclude subject \\
+\midrule
+Soft-flag  & $2\% < \overline{\mathrm{clip}} \le 5\%$ & WARN \\
+Soft-flag  & $-1\ \mathrm{dB} \le \overline{\mathrm{SNR}_{\alpha}^{\,t}} < 0\ \mathrm{dB}$ & WARN \\
+\midrule
+Aggregator & $\ge 2$ soft flags simultaneously & exclude subject \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The status field in Table~\ref{tab:qc} reports \textbf{PASS} for subjects with no flags, \textbf{WARN} for subjects with exactly one soft flag (retained in primary analyses;
+supplement Section~S2 reports a PASS-only sensitivity check), and the row is omitted for excluded subjects. The exclusion list (subjects rejected by the hard-fail gates) is reported
+in Supplement Section~S2.
+
+A separate per-channel rule applies inside otherwise-PASS subjects: any individual channel with $\mathrm{clip}_{c}>5\%$ is dropped from group statistics for that subject only, while
+the rest of the recording is retained.
+
+\subsection{Endpoints}
+
+We report only \emph{scale-invariant} endpoints in the main cross-construction comparison. Raw amplitudes are not directly comparable across the two acquisition setups because the felt and gel cohorts were recorded on different amplifier models with different INT16 resolutions (V-Amp at $0.1\ \upmu$V/bit on most sessions, BrainAmp at $0.0488\ \upmu$V/bit on a subset of gel sessions; see Eq.~\eqref{eq:adc}) and on different days with potentially different operators. No per-channel amplitude scaling is applied beyond the per-recording resolution conversion of Eq.~\eqref{eq:adc}; the alpha-band SNR, eyes-closed/eyes-open reactivity, and tEEG--eEEG SSIM endpoints are all dimensionless ratios and therefore unaffected by between-setup amplitude differences.
+
+\begin{itemize}
+\item \textbf{Alpha-band SNR (dB)} computed from the Welch PSD $\hat{S}(f)$~\cite{welch1967}:
+  \begin{equation}
+  \mathrm{SNR}_{\alpha}\,\bigl[\mathrm{dB}\bigr]
+  \;=\;
+  10\log_{10}\!\frac{P_{\alpha}}{P_{\mathrm{nbr}}},
+  \quad
+  P_{\alpha}=\!\int_{8}^{13}\!\hat{S}(f)\,df,
+  \quad
+  P_{\mathrm{nbr}}=\tfrac{1}{2}\!\Bigl[\!\int_{3}^{8}\hat{S}(f)\,df + \!\int_{13}^{18}\hat{S}(f)\,df\Bigr].
+  \label{eq:snr}
+  \end{equation}
+
+  The Welch PSD~\cite{welch1967} averages periodograms of $K$ overlapping Hamming-windowed segments of length $L=n_{\mathrm{per\,seg}}$ with $50\%$ overlap:
+  \begin{equation}
+  \hat{S}(f)
+  \;=\;
+  \frac{1}{K \cdot L \cdot U}\sum_{k=1}^{K}\Bigl|\sum_{n=0}^{L-1}w[n]\,x_{k}[n]\,e^{-j2\pi f n/f_{s}}\Bigr|^{2},
+  \label{eq:welch}
+  \end{equation}
+  where $w[n]$ is the Hamming window, $U=(1/L)\sum_{n}w[n]^{2}$ is the window normalisation, $x_{k}$ is the $k$-th windowed segment, and $L=4096$ for the SNR endpoints and $L=2048$ for
+   the spectrograms used as SSIM inputs.
+\item \textbf{Alpha reactivity} is the closed/open ratio
+  \begin{equation}
+  R_{\alpha} \;=\; \frac{P_{\alpha,\mathrm{closed}}}{P_{\alpha,\mathrm{open}}},
+  \label{eq:reactivity}
+  \end{equation}
+  with $P_{\alpha,\cdot}$ defined as in Eq.~\eqref{eq:snr} and computed separately on the eyes-closed and eyes-open epochs. Values $R_{\alpha}>1$ indicate the Berger
+  effect~\cite{kirschfeld2005}.
+\item \textbf{Spectrogram SSIM}~\cite{wang2004} between the per-pair tEEG spectrogram $X$ and eEEG spectrogram $Y$ (each computed with $n_{\mathrm{per\,seg}}=2048$,
+  $f_{\max}=45$~Hz):
+  \begin{equation}
+  \mathrm{SSIM}(X,Y)
+  \;=\;
+  \frac{(2\mu_{X}\mu_{Y}+c_{1})(2\sigma_{XY}+c_{2})}
+       {(\mu_{X}^{2}+\mu_{Y}^{2}+c_{1})(\sigma_{X}^{2}+\sigma_{Y}^{2}+c_{2})},
+  \label{eq:ssim}
+  \end{equation}
+  where $\mu$, $\sigma^{2}$ and $\sigma_{XY}$ are the local mean, variance and covariance over an $11\times11$ Gaussian window, and $c_{1}=(0.01\,L)^{2}$, $c_{2}=(0.03\,L)^{2}$ are
+  stabilising constants with $L$ the dynamic range. SSIM is dimensionless and bounded on $[0,1]$, hence directly cross-setup comparable.
+
+
+\item \textbf{Visual evoked potential (Felt setup only)}: peak latencies and amplitudes of the pre-averaged checkerboard response, reported for the two long-felt subjects whose .avg files are available in this study (LF02, LF03). For each canonical component $C\in\{\mathrm{N75},\mathrm{P100},\mathrm{N135}\}$ with search window $W_{C}=[t_{C,\mathrm{lo}},\,t_{C,\mathrm{hi}}]$, the reported latency $\hat{t}_{C}$ is
+  \begin{equation}
+  \hat{t}_{C}
+  \;=\;
+  \begin{cases}
+  \arg\min_{t\in W_{C}}\,\bar{V}(t) & C\in\{\mathrm{N75},\mathrm{N135}\},\\[2pt]
+  \arg\max_{t\in W_{C}}\,\bar{V}(t) & C=\mathrm{P100},
+  \end{cases}
+  \label{eq:peak}
+  \end{equation}
+  with $\bar{V}(t)$ the channel-mean grand-average evoked response. Search windows: $W_{\mathrm{N75}}=[50,95]$, $W_{\mathrm{P100}}=[90,140]$, $W_{\mathrm{N135}}=[125,180]$~(ms; values set in the accompanying build script). A latency that pins at the lower or upper boundary of $W_{C}$ is reported as ``n.r.'' (not resolved) rather than as a numerical peak. Averaged-segment counts vary across subjects: in the felt cohort the range is 54--94 trials (median 74; LF02 has 74, LF03 has 76), and in the gel cohort 100--120 trials (median 112; one excluded gel session has 49 trials). Per-subject trial counts appear in the panel titles of Figure~\ref{fig:felt_vep} and in Supplement Section~S3 for the gel qualitative panels.\\
+  VEPs from the gel cohort are excluded from cross-construction VEP statistics because the gel-era acquisition produced unreliable evoked responses under the harmonized pipeline; see Section~\ref{sec:vep_scope} for scope of this exclusion and Section~\ref{sec:gel_vep_sanity} for the qualitative documentation.
+\end{itemize}
+
+\subsection{Statistical Analysis}
+
+The subject is the unit of analysis throughout. For each metric we aggregate per subject and per channel class (FELT\_TEEG, GEL\_TEEG, PASTE\_TEEG, FELT\_EEEG, GEL\_EEEG, PASTE\_EEEG, DISC). The choice of test depends on whether a contrast is paired or independent. Within a setup, cross-construction contrasts---Felt-tEEG vs.\ Paste-tEEG inside the felt cohort, Gel-tEEG vs.\ Paste-tEEG inside the gel cohort, and the eEEG counterparts---are paired by subject, because both constructions sit on the same head-cap during the same recording; we test these with the two-sided Wilcoxon signed-rank test and report Cohen's $d_z$ together with the matched-pairs rank-biserial correlation $r$. Between-setup contrasts---Felt-tEEG vs.\ Gel-tEEG, and the paste-TCRE bridge between the felt and gel setups---are independent samples and use the two-sided Mann--Whitney U test with Cohen's $d$.
+
+
+\begin{equation}
+  W = \min\!\bigl(R_{+},R_{-}\bigr),
+  \label{eq:wilcoxon}
+  \end{equation}
+  with $R_{\pm}$ as in Eq.~\eqref{eq:rrb}. The Mann--Whitney $U$ for independent samples $A$, $B$ is
+  \begin{equation}
+  U
+  \;=\;
+  \sum_{i \in A}\sum_{j \in B}
+  \bigl[\,\mathbb{1}\{x_{i}>y_{j}\} + \tfrac{1}{2}\,\mathbb{1}\{x_{i}=y_{j}\}\bigr].
+  \label{eq:mwu}
+  \end{equation}
+  Two-sided $p$-values are computed from the exact distribution when $n\le 25$ and from the normal approximation otherwise; both are produced by \texttt{scipy.stats.wilcoxon} and
+  \texttt{scipy.stats.mannwhitneyu} (SciPy 1.x~\cite{virtanen2020}).
+
+
+For a paired contrast with by-subject differences $d_{i}=a_{i}-b_{i}$, $i=1,\ldots,n$, we report Cohen's $d_{z}$ together with the matched-pairs rank-biserial correlation:
+  \begin{equation}
+  d_{z}
+  \;=\;
+  \frac{\bar{d}}{s_{d}},
+  \qquad
+  \bar{d}=\frac{1}{n}\sum_{i=1}^{n} d_{i},
+  \quad
+  s_{d}^{2} = \frac{1}{n-1}\sum_{i=1}^{n}\bigl(d_{i}-\bar{d}\bigr)^{2},
+  \label{eq:dz}
+  \end{equation}
+  \begin{equation}
+  r_{\mathrm{rb}}
+  \;=\;
+  \frac{R_{+} - R_{-}}{R_{+} + R_{-}},
+  \qquad
+  R_{\pm} = \!\!\!\sum_{i:\,\mathrm{sign}(d_{i})=\pm}\!\!\!\mathrm{rank}\bigl(|d_{i}|\bigr),
+  \label{eq:rrb}
+  \end{equation}
+  where ranks are over the nonzero $|d_{i}|$. For an independent contrast between groups $A$ ($n_{A}$ subjects) and $B$ ($n_{B}$), we report Cohen's $d$:
+  \begin{equation}
+  d
+  \;=\;
+  \frac{\bar{x}_{A} - \bar{x}_{B}}{s_{p}},
+  \qquad
+  s_{p}^{2}
+  =
+  \frac{(n_{A}-1)s_{A}^{2} + (n_{B}-1)s_{B}^{2}}{n_{A}+n_{B}-2}.
+  \label{eq:cohend}
+  \end{equation}
+For each per-class metric we report the median together with a bootstrap bias-corrected and accelerated (BCa) 95\% confidence interval~\cite{efron1987} computed from $B=10{,}000$
+  resamples drawn with replacement at the subject level. Writing $\hat{\theta}=\mathrm{median}(x)$ and $\{\hat{\theta}^{*}_{b}\}_{b=1}^{B}$ for the bootstrap distribution, the BCa
+  endpoints are the $\alpha_{1}$ and $\alpha_{2}$ quantiles of $\{\hat{\theta}^{*}_{b}\}$ with
+  \begin{equation}
+  \alpha_{j}
+  \;=\;
+  \Phi\!\left(\hat{z}_{0} + \frac{\hat{z}_{0}+z_{(j)}}{1 - \hat{a}\bigl(\hat{z}_{0}+z_{(j)}\bigr)}\right),
+  \quad j\in\{1,2\},
+  \label{eq:bca}
+  \end{equation}
+  where $\Phi$ is the standard-normal CDF, $z_{(1)}=z_{0.025}$ and $z_{(2)}=z_{0.975}$ are the 95\% quantiles,
+  $\hat{z}_{0}=\Phi^{-1}\!\bigl(\tfrac{1}{B}\#\{\hat{\theta}^{*}_{b}<\hat{\theta}\}\bigr)$ is the bias-correction term, and $\hat{a}$ is the acceleration estimated by jackknife as
+  in~\cite{efron1987}. Random seed is fixed at $0$ in \texttt{scripts/build\_paper\_stats.py} so that re-running the script reproduces the reported intervals exactly.
+
+%-------------------------------------------------------------------------------
+\section{Results}
+
+\subsection{Cohort and QC Outcomes}\label{sec:cohort_qc}
+Per the QC rule of Section~\ref{sec:qc} (Table~\ref{tab:qc_rule}), the analysis cohort comprises 10 felt subjects (3 long-felt and 7 short-felt) and 13 gel subjects. Per-subject QC outcomes are reported in Table~\ref{tab:qc}.
+
+\begin{table}[H]
+\caption{Per-subject QC outcomes. Subjects are de-identified with cohort-prefixed codes (LF = long felt; SF = short felt; G = gel) assigned alphabetically by raw recording name. Status: PASS if no flags trigger; WARN if exactly one soft flag triggers (clip $2$--$5$\%, or mean tEEG SNR in $[-1,0)$~dB); FAIL if any hard threshold is breached (clip $>5\%$, SNR $<-1$~dB, $<2$ epochs of either condition, or two simultaneous WARN flags).}
+\label{tab:qc}
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Cohort} & \textbf{ID} & \textbf{Ch} & \textbf{Dur (s)} & \textbf{Open / Close ep} & \textbf{Mean tEEG SNR (dB)} & \textbf{Status} \\
+\midrule
+Long felt  & LF01 & 11 & 479 & 4 / 3 & $+1.5$ & PASS \\
+Long felt  & LF02 & 11 & 376 & 4 / 3 & $+2.2$ & WARN (clip 2.4\%) \\
+Long felt  & LF03 & 11 & 373 & 4 / 3 & $+2.3$ & PASS \\
+\midrule
+Short felt & SF01 & 11 & 422 & 4 / 3 & $+2.5$ & WARN (clip 4.9\%) \\
+Short felt & SF02 & 11 & 522 & 4 / 3 & $+1.9$ & WARN (clip 3.3\%) \\
+Short felt & SF03 & 11 & 341 & 4 / 3 & $+0.9$ & PASS \\
+Short felt & SF04 & 11 & 543 & 6 / 5 & $+0.9$ & PASS \\
+Short felt & SF05 & 11 & 395 & 5 / 4 & $+3.1$ & PASS \\
+Short felt & SF06 & 11 & 437 & 4 / 3 & $+1.6$ & PASS \\
+Short felt & SF07 & 11 & 372 & 4 / 3 & $+0.7$ & WARN (clip 3.2\%) \\
+\midrule
+Gel & G01 & 7 & 510 & 3 / 3 & $+1.4$ & PASS \\
+Gel & G02 & 7 & 647 & 2 / 2 & $+3.4$ & PASS \\
+Gel & G03 & 7 & 449 & 2 / 2 & $+4.2$ & PASS \\
+Gel & G04 & 7 & 380 & 2 / 2 & $+4.1$ & PASS \\
+Gel & G05 & 7 & 489 & 3 / 3 & $-0.4$ & WARN (SNR$<0$) \\
+Gel & G06 & 7 & 498 & 3 / 3 & $-0.3$ & WARN (SNR$<0$) \\
+Gel & G07 & 7 & 685 & 3 / 2 & $+0.7$ & PASS \\
+Gel & G08 & 7 & 764 & 3 / 3 & $+1.0$ & WARN (clip 2.1\%) \\
+Gel & G09 & 7 & 402 & 3 / 3 & $+3.5$ & PASS \\
+Gel & G10 & 7 & 656 & 2 / 2 & $+0.2$ & WARN (clip 2.6\%) \\
+Gel & G11 & 7 & 518 & 2 / 2 & $+3.2$ & PASS \\
+Gel & G12 & 7 & 798 & 3 / 3 & $+2.0$ & PASS \\
+Gel & G13 & 7 & 518 & 3 / 3 & $-0.0$ & WARN (SNR$<0$) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Alpha-Band Detection (SNR)}
+Figure~\ref{fig:alpha_snr} shows alpha-band SNR by electrode class. The per-class medians (BCa 95\% CI) are Felt tEEG $1.72$~dB $[0.93,\ 2.31]$ ($n=10$); Gel tEEG $1.43$~dB $[0.19,\ 3.42]$ ($n=13$); Paste tEEG $2.97$~dB $[2.09,\ 5.65]$ ($n=23$); and disc $4.33$~dB $[2.91,\ 6.99]$ ($n=23$). The within-setup paired contrasts are Felt-tEEG vs.\ Paste-tEEG, $W=1$, $p=0.004$, $d_z=-1.34$ ($n_{\mathrm{pairs}}=10$), and Gel-tEEG vs.\ Paste-tEEG, $W=25$, $p=0.17$, $d_z=-0.41$ ($n_{\mathrm{pairs}}=13$). The between-setup contrast Felt-tEEG vs.\ Gel-tEEG is essentially flat ($U=68$, $p=0.88$, $d=-0.00$; $n_a=10$, $n_b=13$). Alpha sits above the flanking neighbour bands on every class, which is what we expect from posterior alpha in the eyes-closed condition. Paste-TCRE has the highest alpha SNR of the three constructions; Felt and Gel are broadly comparable.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/comparison_alpha_snr.png}
+\caption{Alpha-band SNR (dB) by electrode class. Boxplots overlaid with individual-subject points. $n$ = subjects per class.}
+\label{fig:alpha_snr}
+\end{figure}
+
+\subsection{Eyes-Closed/Eyes-Open Reactivity}
+Figure~\ref{fig:reactivity} shows alpha reactivity (closed/open ratio); values above 1 are read as a Berger effect~\cite{kirschfeld2005}. The per-class medians (BCa 95\% CI) are Felt tEEG $1.49$ $[1.10,\ 1.87]$ ($n=10$); Gel tEEG $3.63$ $[1.64,\ 5.32]$ ($n=13$); Paste tEEG $3.43$ $[2.30,\ 6.88]$ ($n=23$); and disc $4.72$ $[2.41,\ 8.62]$ ($n=23$). The Berger effect itself is detected on Felt tEEG in 10/10 subjects, Gel tEEG in 13/13, and Paste tEEG in 21/23. The between-setup contrast Felt-tEEG vs.\ Gel-tEEG separates the two cohorts ($U=26$, $p=0.017$, $d=-1.11$, Mann--Whitney): gel reactivity is meaningfully higher than felt reactivity. The within-setup paired contrasts are smaller---Felt-tEEG vs.\ Paste-tEEG, $W=5$, $p=0.020$, $d_z=-0.58$ ($n_{\mathrm{pairs}}=10$); Gel-tEEG vs.\ Paste-tEEG, $W=23$, $p=0.13$, $d_z=-0.43$ ($n_{\mathrm{pairs}}=13$).
+
+The two paste-tEEG subjects below the Berger threshold are SF02 (paste-tEEG reactivity 0.96; disc 5.00; felt-tEEG 1.67) and SF03 (paste-tEEG 0.88; disc 0.96; felt-tEEG 1.10). On SF03 the attenuation is visible across all three derivations, which points to a subject-level rather than a construction-level effect. On SF02 the non-response is local to the paste-tEEG channel while the disc and felt-tEEG show the expected modulation, suggesting a placement-level issue on the paste TCRE during that session; SF02 also carries a $3.3\%$ ADC-clip WARN flag (Table~\ref{tab:qc}). Both subjects remain in the cohort with the non-response flagged here rather than silently dropped.
+
+The Felt-tEEG reactivity median (1.49) sits well below the Gel-tEEG median (3.63), which warrants comment. Most directly, ADC clipping is concentrated in the felt cohort---four of ten felt sessions (LF02, SF01, SF02, SF07; Table~\ref{tab:qc}) carry a clip-percentage flag, and the rail-clipping events tend to land on high-amplitude eyes-closed segments where they depress $P_{\alpha,\mathrm{closed}}$ and therefore the closed/open ratio. The same clipping mechanism does not symmetrically depress the alpha-band SNR (Felt-tEEG $1.72$~dB vs.\ Gel-tEEG $1.43$~dB; broadly comparable), because the SNR endpoint compares alpha-band power to flanking-band power within the \emph{same} epoch, so a rail-induced cap on the eyes-closed alpha peak attenuates numerator and denominator of $P_{\alpha}/P_{\mathrm{nbr}}$ together; reactivity, by contrast, divides closed-condition alpha power by open-condition alpha power, and rail clipping during high-amplitude closed segments bites the numerator far harder than the denominator. The reactivity-vs-SNR asymmetry is therefore expected from the clipping pattern alone. Closed-condition power is also estimated from fewer epochs in the felt cohort, so the per-subject estimate is noisier. A residual construction-level effect remains possible: saline can spread beyond the nominal ring footprint and lower the effective interface impedance, both of which would attenuate posterior alpha at the scalp. The take-away is that the Berger effect itself survives in 10/10 felt subjects, so we keep the felt cohort in the main analysis, but the absolute reactivity magnitude on Felt-tEEG should be read as confounded with acquisition quality.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/comparison_alpha_reactivity.png}
+\caption{Alpha reactivity (eyes-closed/eyes-open alpha power) by electrode class. Reactivity axis is capped, with outliers annotated.}
+\label{fig:reactivity}
+\end{figure}
+
+\subsection{Eyes-Open versus Eyes-Closed PSD Shape}
+Figure~\ref{fig:open_closed_psd} shows the per-class normalized PSDs for eyes-open and eyes-closed. PSDs are normalized to each channel's own broadband power (1--30~Hz) so that shape, not amplitude, is compared across constructions.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/comparison_open_vs_closed_psd.png}
+\caption{Normalized eyes-open vs.\ eyes-closed PSD, per electrode class. An 8--13~Hz bump on closed minus open is the expected Berger signature.}
+\label{fig:open_closed_psd}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/comparison_psd_teeg.png}
+\caption{Normalized tEEG PSDs (1--30~Hz) by electrode class, with the disc reference overlaid. Per-channel broadband normalization makes the shapes directly comparable across constructions.}
+\label{fig:psd_teeg}
+\end{figure}
+
+\subsection{Spectrogram SSIM Between Paired tEEG and eEEG}
+Figure~\ref{fig:ssim} shows the per-pair SSIM between tEEG and eEEG spectrograms. SSIM is bounded on $[0,1]$ and dimensionless, so values are directly comparable across the two acquisition setups. The per-class medians (BCa 95\% CI) are Felt $0.307$ $[0.266,\ 0.338]$ ($n=10$); Gel $0.519$ $[0.470,\ 0.694]$ ($n=13$); Paste $0.710$ $[0.619,\ 0.758]$ ($n=23$). All three constructions sit well below the 0.8 conventional high-similarity threshold, so tEEG and eEEG cannot be treated as scaled copies of each other on any of the three couplings. The construction effect itself is large. Between setups, Felt-tEEG vs.\ Gel-tEEG differs at $U=0$, $p<0.001$, $d=-2.52$ (Mann--Whitney; $n_a=10$, $n_b=13$). The within-setup paired contrasts go in the same direction: Felt vs.\ Paste, $W=1$, $p=0.004$, $d_z=-1.95$ ($n_{\mathrm{pairs}}=10$); Gel vs.\ Paste, $W=7$, $p=0.005$, $d_z=-1.03$ ($n_{\mathrm{pairs}}=13$). The ordering Felt $<$ Gel $<$ Paste therefore holds in every contrast we can run.
+
+\begin{figure}[H]
+\centering
+\IfFileExists{figs/comparison_ssim.png}{%
+  \includegraphics[width=0.95\linewidth]{figs/comparison_ssim.png}%
+}{%
+  \fbox{\parbox{0.7\linewidth}{\centering\vspace{1.5em}\textit{[comparison\_ssim.png missing --- re-run \texttt{src/three\_way\_comparison.ipynb}]}\vspace{1.5em}}}%
+}
+\caption{Spectrogram SSIM between paired tEEG and eEEG channels by electrode class.}
+\label{fig:ssim}
+\end{figure}
+
+\subsection{Paste-TCRE Cross-Setup Bridge}
+The paste TCRE is recorded in both setups, so its between-setup behaviour acts as a sanity check on residual cross-setup variance that is not attributable to construction. Figure~\ref{fig:paste_bridge} shows the three endpoints on paste TCRE in the felt setup vs.\ the gel setup. None of the three Mann--Whitney contrasts separate the two cohorts at conventional thresholds (alpha SNR $U=89$, $p=0.15$, $d=+0.51$; reactivity $U=46$, $p=0.25$, $d=-0.39$; SSIM $U=69$, $p=0.83$, $d=+0.01$; $n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$). At these sample sizes the bridge has roughly 60\% power against a Cohen's $d$ of $0.8$, so we cannot rule out smaller between-setup effects.   For the paste-bridge contrast (Mann--Whitney U with $n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$), the asymptotic power against an alternative with standardised effect size $d$ is
+  \begin{equation}
+  1-\beta
+  \;=\;
+  \Phi\!\left(
+  -z_{1-\alpha/2} +
+  d\sqrt{\frac{n_{\mathrm{felt}}\,n_{\mathrm{gel}}}{n_{\mathrm{felt}}+n_{\mathrm{gel}}}}
+  \right),
+  \label{eq:power}
+  \end{equation}
+  which gives $1-\beta\approx 0.60$ at $d=0.8$ and $\alpha=0.05$. Smaller between-setup effects cannot be ruled out at the present sample sizes. What the bridge does rule out within a given metric is a between-setup effect of the magnitude we see across constructions: paste-bridge SSIM is essentially null ($d=+0.01$, $p=0.83$), whereas the Felt-vs-Gel SSIM construction contrast is $d=-2.52$ on the same metric. The construction-level SSIM separation is more than two orders of magnitude larger than the corresponding setup-level effect, so the cross-construction SSIM finding is unlikely to be driven by acquisition-side differences between the two setups.
+
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/comparison_paste_bridge.png}
+\caption{Paste TCRE behavior in the felt setup vs.\ the gel setup (cross-setup bridge). Endpoints: alpha SNR, reactivity, and SSIM.}
+\label{fig:paste_bridge}
+\end{figure}
+
+\subsection{Visual Evoked Potentials (Felt Setup Only)}\label{sec:vep_scope}
+VEPs are reported here as a qualitative check on the felt setup. The section is deliberately scoped to the two long-felt subjects whose pre-averaged checkerboard responses are available, LF02 and LF03. Figure~\ref{fig:felt_vep} shows the per-subject grand averages over felt-tEEG (channel-mean of TCRE \#1--\#4 tEEG), paste-tEEG, and paste-disc, with N75 / P100 / N135 markers at the canonical-window extrema (Table~\ref{tab:felt_vep}; peak-finder defined in Eq.~\eqref{eq:peak}). The clearest morphology in the cohort is on LF02 paste-tEEG: a resolved P100 at 109~ms ($\approx 17\ \upmu$V), flanked by a 71~ms N75 and a 132~ms N135, with a small matching deflection on the disc. On LF03 the paste-tEEG trace carries a large positive deflection of $\approx 41\ \upmu$V near 140~ms, but because that latency sits right at the upper edge of the canonical P100 window we are not comfortable reporting it as a P100; the broader shape looks more like a delayed positivity or a P100/N135 fusion than a textbook P100. LF02 felt-tEEG values are noise-dominated, since the felt-tEEG channel mean on that recording is contaminated by the clipped channel flagged in Table~\ref{tab:qc}; we keep the row in Table~\ref{tab:felt_vep} for transparency. With only two usable VEP recordings, this section is hypothesis-generating; an expanded VEP cohort under the harmonized pipeline is left for future work.
+
+Why we do not report a like-for-like $n=2$ vs.\ $n=2$ qualitative VEP comparison against the gel cohort: the gel-cohort sanity check in Section~\ref{sec:gel_vep_sanity} (G02, G10, and one excluded session) shows that morphology \emph{does} recover on at least one tEEG channel for G02 (marginal) and G10 (clearest, with N75/P100/N135 visible at Pz). However, recovery is per-channel and per-session rather than cohort-level, the strongest gel session (G10) is recovered at Pz and not at the occipital sites where alpha is concentrated in the felt setup, and the excluded session's tEEG is rail-saturated. We did not consider this a quality bar adequate for a between-construction VEP contrast and have left the gel-cohort comparison qualitative; pre-empting cohort growth and a re-collection on a single amplifier under the harmonized pipeline.
+
+The gel cohort is excluded from cross-construction VEP statistics because the gel-era acquisition produced unreliable evoked responses when re-processed under the harmonized pipeline. We document the gel-VEP behaviour qualitatively in Section~\ref{sec:gel_vep_sanity} so that the exclusion is auditable; the underlying cause (amplifier configuration during the gel collection campaign vs.\ residual pipeline differences) is currently under review with the original gel-TCRE operator.
+
+\begin{figure}[H]
+\centering
+\IfFileExists{figs/felt_vep_grand.png}{%
+  \includegraphics[width=0.95\linewidth]{figs/felt_vep_grand.png}%
+}{%
+  \fbox{\parbox{0.7\linewidth}{\centering\vspace{1.5em}\textit{[felt\_vep\_grand.png missing --- run \texttt{python paper\_sensors/build\_felt\_vep\_figure.py}]}\vspace{1.5em}}}%
+}
+\caption{Felt-setup checkerboard VEP grand averages for subjects LF02 and LF03 (mean over tEEG channels of the four felt TCREs; paste-TCRE \#5 tEEG; paste disc). Vertical dashed line: stimulus onset. Coloured bands: N75 (blue), P100 (red), N135 (purple) search windows.}
+\label{fig:felt_vep}
+\end{figure}
+
+\begin{table}[H]
+\caption{Per-subject VEP latencies (ms) and amplitudes ($\upmu$V) on the felt-tEEG channel-mean, paste-tEEG, and disc. Subject IDs follow the de-identified codes in Table~\ref{tab:qc}. Latencies that would otherwise pin at a canonical-window boundary (50, 140, or 125~ms) are reported as ``n.r.'' (not resolved) because they indicate the peak-finder returned the within-window extremum rather than a true local extremum. The LF02 felt-tEEG row is shown in grey because the felt-tEEG mean on that subject is dominated by a clipped/high-impedance channel (Table~\ref{tab:qc}) and the values are noise-dominated; we retain the row for transparency rather than for interpretation. Resolved peaks are reported numerically.}
+\label{tab:felt_vep}
+\centering\small
+\begin{tabular}{llcccccc}
+\toprule
+\textbf{ID} & \textbf{Channel} & \textbf{N75 lat} & \textbf{N75 amp} & \textbf{P100 lat} & \textbf{P100 amp} & \textbf{N135 lat} & \textbf{N135 amp} \\
+\midrule
+LF03 & Felt tEEG  & n.r.\ & $-1.7$  & n.r.\ & $+48.0$ & n.r.\ & $+12.5$ \\
+LF03 & Paste tEEG & n.r.\ & $+10.9$ & n.r.\ & $+41.0$ & 126.0 & $+22.1$ \\
+LF03 & Disc       & n.r.\ & $+0.2$  & n.r.\ & $+3.9$  & n.r.\ & $+0.4$  \\
+\midrule
+LF02 & Felt tEEG\footnotemark[1] & 59.0 & $-56.0$ & n.r.\ & $-23.3$ & n.r.\ & $-59.0$ \\
+LF02 & Paste tEEG & 71.0  & $-7.4$  & 109.0 & $+17.3$ & 132.0 & $-19.6$ \\
+LF02 & Disc       & 59.0  & $-1.9$  & n.r.\ & $+2.6$  & n.r.\ & $-4.5$  \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\footnotetext[1]{LF02 felt-tEEG values are noise-dominated because the felt-tEEG mean is contaminated by the clipped channel flagged in Table~\ref{tab:qc}; reported for transparency only.}
+\end{table}
+
+\subsection{Gel-Cohort VEP Sanity Check (Qualitative)}\label{sec:gel_vep_sanity}
+Three gel-cohort recordings illustrate the heterogeneity behind the cross-construction VEP exclusion: G02 and G10 (both in the analysis cohort) and one additional gel session that failed cohort QC due to continuous ADC-rail saturation on its tEEG channel (referred to here as the excluded session). Recognisable VEP morphology (N75/P100/N135) is recoverable on at least one tEEG channel for G02 (marginal) and G10 (clearest, with matching morphology on the paired Pz disc at smaller amplitude); the excluded session's tEEG saturates the INT16 rail, while its paired disc still produces a recognisable VEP (Figures~\ref{fig:gel_vep_ba1}--\ref{fig:gel_vep_mn3}). A short preprocessing-sensitivity check on the excluded session across the A/B/C variants is shown in Figure~\ref{fig:gel_vep_sensitivity}, and a unified-pipeline overview across the three sessions is shown in Figure~\ref{fig:gel_vep_unified}. The gel-cohort VEPs are not categorically absent under the harmonized pipeline but are not yet of a quality that supports cross-construction VEP statistics.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/gel_vep_G02.png}
+\caption{Gel-cohort VEP sanity check, subject G02, harmonized pipeline.}
+\label{fig:gel_vep_ba1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/gel_vep_excluded.png}
+\caption{Gel-cohort VEP sanity check, the excluded gel session. The tEEG channel hits the INT16 ADC rail (continuous saturation, QC fail); the paired Pz disc still produces a recognisable evoked response.}
+\label{fig:gel_vep_ba2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/gel_vep_G10.png}
+\caption{Gel-cohort VEP sanity check, subject G10. Cleanest of the three sessions, with N75/P100/N135 visible on tEEG at Pz and matching morphology on the paired Pz disc at smaller amplitude.}
+\label{fig:gel_vep_mn3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/gel_vep_excluded_sensitivity.png}
+\caption{Preprocessing-sensitivity check on the excluded gel session across pipeline variants A (notch + bandpass + wavelet + per-epoch z-score), B (notch + bandpass; primary), and C (notch only). The tEEG ADC saturation persists across all variants, indicating an acquisition-side rather than processing-side cause.}
+\label{fig:gel_vep_sensitivity}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/gel_vep_unified.png}
+\caption{Unified-pipeline overview across the gel BA subjects.}
+\label{fig:gel_vep_unified}
+\end{figure}
+
+%-------------------------------------------------------------------------------
+\section{Discussion}
+
+\subsection{Methods Harmonization}
+The strongest contribution of this pilot is the harmonized pipeline itself. By excluding adaptive cleaners (ICA, ASR, automated bad-channel interpolation) and keeping the only mandatory steps a notch and a linear-phase bandpass, we ensure that any between-construction differences are not artifacts of a cleaner behaving differently on clean paste vs.\ noisier felt. The cost of this choice is that subjects with bad channels stay flagged rather than rescued, which we report transparently in QC.
+
+\subsection{Felt-tEEG vs.\ Gel-tEEG: Same Estimator, Same Geometry}
+Both setups use the same hardware Laplacian on TCREs of identical ring geometry, so the cross-construction contrast in §3 is on construction (electrolyte and coupling: saline-soaked felt vs.\ conductive gel vs.\ paste) rather than on estimator.
+
+The most striking single number in §3 is the SSIM ordering Felt $0.31 <$ Gel $0.52 <$ Paste $0.71$, with very large effect sizes on both Felt-vs-Gel and Felt-vs-Paste. The temptation is to read this as ``felt is the most aggressive spatial filter,'' but a few caveats keep us from that reading. SSIM does not separate two channels that carry genuinely independent neural information from two channels that share a common neural signal corrupted by independent noise; both produce low SSIM. The alpha-SNR ordering does not mirror the SSIM ordering either---paste is the cleanest channel by SNR, while felt and gel sit close together---which makes the ``felt-is-cleanest-Laplacian'' reading awkward at best. Several electrolyte-level effects could plausibly drive the contrast we see. Saline can spread beyond the nominal ring footprint, effectively enlarging the outer-ring contact area; the three rings can carry asymmetric impedances, which would push construction-dependent imbalances into the on-board Laplacian; and each ring contributes its own contact noise. Per-ring impedance logging in a future cohort is what would actually discriminate between these. For now we read the SSIM ordering as a hypothesis-generating observation about electrolyte coupling, not as a verdict on which construction is the better spatial filter.
+
+\subsection{Disc-EEG Alpha SNR Exceeds tEEG Alpha SNR}
+Disc EEG has the highest alpha SNR of any class in our cohort (median 4.33~dB). On its face this looks unflattering for the Laplacian, which is supposed to improve focal-source SNR by rejecting volume-conducted broadband activity~\cite{besio2006,koka2007}. The standard surface-Laplacian explanation applies here: posterior alpha during the eyes-closed condition is broadly distributed across occipital cortex rather than focal, so the same spatial high-pass that helps a focal source rejects much of a diffuse one. We report the disc--tEEG SNR contrast for context, not as evidence against the TCRE.
+
+\subsection{Limitations}
+
+\begin{itemize}
+\item Pilot-scale cohort. Felt is $n=10$ (3 long-felt, 7 short-felt) and gel is $n=13$ after QC; any single-subject outlier visibly moves the medians and inferential claims should be read as preliminary.
+\item ADC clipping was prevalent on early felt sessions (impedance issues). Per-channel exclusions retain the rest of each affected subject but reduce per-class effective $n$ for some channels.
+\item Paste-TCRE recordings in the two setups were collected on different days and likely by different operators. The cross-setup bridge therefore estimates an upper bound on construction effects, not a strict null.
+\item VEPs are reported only for the felt setup. The gel-era VEP anomaly is not yet root-caused and is documented qualitatively in the supplement.
+\end{itemize}
+
+\subsection{What This Enables}
+For practitioners, this paper offers a single open pipeline and a cross-setup bridge design that other TCRE labs can re-use to make their results readable against ours. We deliberately do not recommend one construction over another on the basis of this pilot; the contribution is the comparison framework, not a winner.
+
+%-------------------------------------------------------------------------------
+\section{Conclusions}
+
+We presented a pilot, methods-harmonized comparison of three TCRE constructions (saline-soaked felt, conductive gel, paste) using a single minimal preprocessing pipeline and scale-invariant endpoints. Across constructions, alpha-band detection and reactivity were physiologically plausible, the paste-TCRE cross-setup bridge produced no significant between-setup differences ($n_{\mathrm{felt}}=10$, $n_{\mathrm{gel}}=13$), and tEEG vs.\ eEEG spectrograms differed structurally and in a construction-dependent way (median SSIM Felt~$0.31 < $ Gel~$0.52 < $ Paste~$0.71$, with Felt vs Gel and Felt vs Paste both reaching $p\leq 0.002$). Conclusions are descriptive given the small and imbalanced cohort. Future work will (i)~grow both cohorts beyond pilot scale, especially balancing the long-felt arm, and (ii)~re-collect a gel-setup VEP dataset on a single amplifier under the harmonized pipeline.
+
+%-------------------------------------------------------------------------------
+\vspace{6pt}
+
+\authorcontributions{Conceptualization, W.G.B.; data curation (felt setup), S.K.; data curation (gel setup) and original gel-TCRE signal-processing pipeline, B.A.; hardware and 3D-printed electrode housings, M.N.; methodology and harmonized analysis pipeline, S.K.; software, S.K.; formal analysis, S.K.; writing---original draft preparation, S.K.; writing---review and editing, all authors; supervision and project administration, W.G.B. All authors have read and agreed to the published version of the manuscript.}
+
+\funding{\TBD{Funding sources and grant numbers (URI / NIH / NSF as applicable).}}
+
+\institutionalreview{\TBD{IRB protocol number and approving body.}}
+
+\informedconsent{Informed consent was obtained from all subjects involved in the study.}
+
+\dataavailability{Code is available at \TBD{repo URL}. De-identified processed metrics will be released alongside the final manuscript; raw recordings remain access-controlled under the URI IRB protocol.}
+
+\acknowledgments{The authors thank Tugba \TBD{Surname} and Hunter \TBD{Surname} (graduate students, URI Biomedical Engineering, Spring 2026) for assistance with felt-cohort recordings and electrode placement; Luci \TBD{Surname} for designing and 3D-printing the longer screw used in the felt setup and for assistance with recordings; and Caitlin \TBD{Surname} and Gabryana \TBD{Surname} for assistance with recordings. We also thank the subjects who participated and the URI Biomedical Engineering technical staff.}
+
+\conflictsofinterest{The authors declare no conflicts of interest.}
+
+%\sampleavailability{Not applicable.}
+
+%-------------------------------------------------------------------------------
+%\reftitle{References}
+\begin{adjustwidth}{-\extralength}{0cm}
+\printendnotes[custom]
+\end{adjustwidth}
+
+\reftitle{References}
+\externalbibliography{yes}
+\ifpreview\bibliographystyle{unsrt}\fi
+\bibliography{refs}
+
+\end{document}

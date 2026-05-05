@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tripolar-eeg"
+version = "0.1.0"
+description = "Methods-harmonized analysis pipeline for Tripolar Concentric Ring Electrode (TCRE) EEG comparing saline-soaked felt, conductive gel, and paste constructions."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Shayan Khodabakhsh", email = "skhodabakhsh@uri.edu" },
+    { name = "Behtom Adeli" },
+    { name = "Walter G. Besio" },
+]
+keywords = [
+    "tripolar concentric ring electrode",
+    "TCRE",
+    "EEG",
+    "surface Laplacian",
+    "alpha rhythm",
+    "VEP",
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "matplotlib>=3.7",
+    "scikit-image>=0.22",
+    "PyWavelets>=1.4",
+]
+
+[project.optional-dependencies]
+fooof = ["specparam==2.0.0rc6"]
+notebooks = ["jupyterlab>=4.0", "ipykernel>=6.0"]
+dev = ["pytest>=7.0", "ruff>=0.4"]
+
+[project.urls]
+Homepage = "https://github.com/Shayank1996/Tripolar_EEG"
+Issues = "https://github.com/Shayank1996/Tripolar_EEG/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
