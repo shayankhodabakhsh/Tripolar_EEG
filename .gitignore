@@ -48,6 +48,7 @@ TCRE_Gel.pdf
 paper/main.pdf
 paper/supplement.pdf
 archive/**/*.pdf
+paper/literature/
 
 # ─── Jupyter ───
 .ipynb_checkpoints/
