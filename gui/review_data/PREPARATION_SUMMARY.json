@@ -1,0 +1,10 @@
+{
+  "records": 16,
+  "in_scope_records": 12,
+  "integrity_rows": 16,
+  "channel_metric_rows": 672,
+  "duplicate_candidates": 0,
+  "raw_data_modified": false,
+  "decisions_applied": false,
+  "authoritative_backend": "mne.io.read_raw_brainvision"
+}

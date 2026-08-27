@@ -3,3 +3,11 @@ scipy
 matplotlib
 scikit-image
 specparam==2.0.0rc6
+pandas>=2.2
+mne>=1.8
+streamlit>=1.40
+jupyterlab>=4.3
+ipywidgets>=8.1
+pytest>=8
+# Optional for PDF report export; HTML reports do not require it.
+weasyprint>=62

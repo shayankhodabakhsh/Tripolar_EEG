@@ -44,3 +44,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# ─── Blinded EEG review state ───
+# The public blind is safe to version; the source-name key and human decisions are not.
+gui/private/
+gui/review_output/
